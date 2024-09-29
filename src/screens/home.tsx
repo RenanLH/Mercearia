@@ -10,11 +10,13 @@ function Home() {
     <Text size="22px" c={'#FFFF'}>Mercearia São Lourenço</Text>
     <div className="row">
       <NavLink to='/novaVenda'>
-          <img src={shoppingCartLogo} className="logo comprar" alt="Comprar" />
+        <img src={shoppingCartLogo} className="logo venda" alt="Vender" />
       </NavLink>  
-      <a href="https://tauri.app" target="_blank">
+
+      <NavLink to='/novoProduto'>
         <img src={addProductLogo} className="logo tauri" alt="Tauri logo" />
-      </a>
+      </NavLink>
+       
       <a href="https://reactjs.org" target="_blank">
         <img src={reactLogo} className="logo react" alt="React logo" />
       </a>

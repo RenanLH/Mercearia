@@ -1,14 +1,10 @@
-import {  useState } from "react";
-import reactLogo from "./assets/react.svg";
-import shoppingCartLogo from "./assets/shopping-cart-svgrepo-com.svg"
-import addProductLogo from "./assets/add-to-svgrepo-com.svg"
 import '@mantine/core/styles.css'
-import { invoke } from "@tauri-apps/api/tauri";
 import { MantineProvider, createTheme,  AppShell} from "@mantine/core";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import "./App.css";
 import Home from "./screens/home";
 import NovaVenda from "./screens/novaVenda";
+import novoProduto from './screens/novoProduto';
 
 function App() {
   const views = [{
@@ -20,12 +16,16 @@ function App() {
     path: 'novaVenda',
     name: 'novaVenda',
     component: NovaVenda
+  },{
+    path: 'novoProduto',
+    name: 'novoProduto',
+    component: novoProduto
   }];
   
   const theme = createTheme({
     fontFamily: 'Montserrat, sans-serif',
     defaultRadius: 'md',
-    white: 'false'
+    white: 'false',
   });
 
 
