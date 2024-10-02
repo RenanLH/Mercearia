@@ -2,23 +2,15 @@ import { Button, Center, Combobox, Flex, Grid, Input, InputBase, NumberInput, Te
 import { useEffect, useState } from "react";
 import { IconArrowLeft } from '@tabler/icons-react';
 import { NavLink } from "react-router-dom";
+import axios from "axios";
 
 
 const products = [{
-  codBarras: "",
+  barcode: "",
   name:"",
+  salesName: "",
   price: "0",
-  qt: ""    
-},{
-  codBarras: "",
-  name:"Amendoim Japonês Elma Chips Pacote 145g ",
-  price:"8,01",
-  qt: "1"    
-},{
-  codBarras: "",
-  name:"Amendoim Japonês Elma Chips Pacote 145g ",
-  price:"8,99",
-  qt: "1"    
+  qtd: ""    
 },]
 
 const groceries = ['🍎 Apples', '🍌 Bananas', '🥦 Broccoli', '🥕 Carrots', '🍫 Chocolate'];
@@ -44,7 +36,9 @@ function showMoney(value: number| string){
 }
 
 function NovaVenda (){
-  useEffect(() => {setTotal(getTotal);});
+  useEffect(() => {
+    setTotal(getTotal);
+  });
 
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
@@ -53,12 +47,14 @@ function NovaVenda (){
   const [dpBoxValue, setDpBoxValue] = useState<string | null>(null);
   const [erros, setErros] = useState<string | null>(null);
 
+  const [lastCBarras, setLastCBarras] = useState<string>('');
   const [cBarras, setCBarras] = useState<string | number>('');
   const [total, setTotal] = useState<number>(0.0);
   const [preco, setPreco] = useState<string | number>('');
   const [qtd, setQtd] = useState<string | number>('');
 
   function reset(){
+    setLastCBarras('')
     setCBarras('')
     setQtd(1);
     setPreco(0);
@@ -66,17 +62,58 @@ function NovaVenda (){
     setErros('');
   }
 
+  
+  async function searchDB (codBarras: String){
+    try {
+
+      const sameProduct = products.filter((p)=> p.barcode==cBarras)[0];
+      if (sameProduct != undefined && sameProduct != null){
+        const newProduct = {
+          barcode: sameProduct.barcode,
+          name: sameProduct.name,
+          salesName: sameProduct.salesName,
+          price: sameProduct.price,
+          qtd: String(qtd)
+        }
+
+        products.push(newProduct);
+        setTimeout(() => {
+          reset()
+        }, 0);
+      }else {
+        const result = await axios.get("http://localhost:5000/products?codBarras=" + codBarras);
+
+        if (result.status == 200){
+          const product = result.data;
+  
+          if(Number(qtd) >= 1) product.qtd = qtd;
+          else product.qtd = 1;
+  
+          products.push(product);
+            setTimeout(() => {
+              reset()
+            }, 500);
+          }
+      }
+   
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } 
+  }
+
+
   function getTotal(){
-    return products.reduce((sum, product) => sum + (parseFloat(product.price.replace(",", ".")) * Number(product.qt)), 0);
+    return products.reduce((sum, product) => sum + (parseFloat(product.price.replace(",", ".")) * Number(product.qtd)), 0);
   }
 
   function adicionarBtOnclick(){
     if (dpBoxValue != null && preco != '' && qtd != '') {
       products.push({
-        codBarras: "",
+        barcode: "",
         name: dpBoxValue as string,
+        salesName: "",
         price: numberToMoney(preco),
-        qt: String(qtd)});
+        qtd: String(qtd)});
       
       reset()
       setTotal(getTotal());
@@ -85,6 +122,23 @@ function NovaVenda (){
     }
    
   }
+
+  function cBarrasOnChange(){
+    if (String(cBarras).length == 13 && String(cBarras) != String(lastCBarras)){
+      setLastCBarras(String(cBarras));
+
+      searchDB(String(cBarras));
+    
+    }else {
+      const begin = String(cBarras).length
+      setCBarras(String(cBarras).slice(0, 13));
+    }
+  }
+
+  function disableButton(){
+    return dpBoxValue == null || preco == ""; 
+  }
+
 
 
   return <div>
@@ -98,7 +152,22 @@ function NovaVenda (){
     <Text ta={"center"} c={"red"} size="15px" ff="monospace">{erros}</Text>
 
     <Center>
-      <NumberInput value={cBarras} onChange={setCBarras} p="sm" c={"#FFFF"} color="#FFFF" placeholder="Código de Barras" hideControls={true}/>
+      <NumberInput 
+        value={cBarras} 
+        onChange={setCBarras} 
+        onKeyUp={()=> cBarrasOnChange()} 
+        p="sm" 
+        placeholder="Código de Barras" 
+        hideControls={true}
+        autoFocus={true}/>
+
+      <NumberInput 
+        value={qtd} 
+        onChange={setQtd} 
+        placeholder='Quantidade' 
+        allowDecimal={false} 
+        allowNegative={false} 
+        hideControls={true}/>
     </Center>
 
     <Flex pb={"5%"} gap={"md"} justify={"center"} direction={{ base: 'column', sm: 'row' }}>
@@ -106,9 +175,7 @@ function NovaVenda (){
         store={combobox}
         onOptionSubmit={(val) => {
         setDpBoxValue(val);
-        combobox.closeDropdown();
-        }}
-      >
+        combobox.closeDropdown();}}>
 
         <Combobox.Target>
           <InputBase
@@ -139,9 +206,8 @@ function NovaVenda (){
         fixedDecimalScale={true}
         hideControls={true}
         prefix="R$ "/>
-      <NumberInput value={qtd} onChange={setQtd} placeholder='Quantidade' allowDecimal={false} allowNegative={false} hideControls={true}/>
 
-      <Button onClick={adicionarBtOnclick}> Adicionar</Button> 
+      <Button disabled={disableButton()} onClick={adicionarBtOnclick}> Adicionar</Button> 
     </Flex>
 
     <Grid>
@@ -161,7 +227,7 @@ function NovaVenda (){
 
     <Text pr={ "15px"} ta={"end"} size="25px" c={"#FFFF"}>{showMoney(total)} </Text>    
 
-    {products.map((product, index)=>
+    {products.map((product, _index)=>
       <Grid justify={"start"}>
         <Grid.Col span={6}>
           <Text ps={"md"} c={"#ffff"} size="20px" truncate="end">{product.name}</Text>
@@ -170,7 +236,7 @@ function NovaVenda (){
           <Text pl={"10px"} c={"#ffff"} size="20px">{showMoney(product.price)}</Text>
         </Grid.Col>
         <Grid.Col span={2}>
-          <Text pl={"55px"} c={"#ffff"} size="20px"> {product.qt}</Text>
+          <Text pl={"55px"} c={"#ffff"} size="20px"> {product.qtd}</Text>
         </Grid.Col>
       </Grid>
       )}

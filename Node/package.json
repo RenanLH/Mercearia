@@ -5,9 +5,13 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@prisma/client": "^5.20.0",
     "axios": "^1.7.7",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.20.0"
   }
 }
