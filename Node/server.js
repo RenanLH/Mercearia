@@ -69,7 +69,7 @@ app.get("/scrape", async (req, res) => {
           qtd: String(product.qtd)
         }
       })
-     
+      
       res.status(200).json("Produto cadastrado com sucesso");
     } catch (error) {
       res.status(500).json({message: "Erro ao cadastrar o produto" + error});
@@ -93,5 +93,22 @@ app.get("/scrape", async (req, res) => {
     } catch (error) {
       res.status(500).json(error);
     }
-
   });
+
+  app.post("/sales", async(req, res) => {
+    try {
+      const sale = req.body;
+
+      await prisma.sale.create({
+        data: {
+          productList: sale.productList,
+          total: String(sale.total)
+        }
+      })    
+
+      
+    } catch (error) {
+      console.log(error);
+      res.status(500).json("") 
+    }
+  })

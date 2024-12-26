@@ -11,7 +11,7 @@ function NovoProduto() {
   const [title, setTitle] = useState<string>('Novo Produto');
   const [erros, setErros] = useState<string>('');
   const [cBarras, setCBarras] = useState<number | string>('')
-  const [checked, setChecked] = useState(false);
+  const [checked, setChecked] = useState(true);
   const [nomeProduto, setNomeProduto] = useState('')
   const [nomeVendaProduto, setNomeVendaProduto] = useState('')
   const [qtdProduto, setQtdProduto] = useState<number | string>('')
@@ -19,8 +19,14 @@ function NovoProduto() {
 
 
   function disableButton(){
-    return found || String(cBarras).length == 0 || nomeProduto.length == 0 || nomeVendaProduto.length == 0 
-    || String(qtdProduto).length == 0 || String(precoProduto).length == 0; 
+    return found || String(cBarras).length == 0 || nomeProduto.length == 0
+    || String(precoProduto).length == 0; 
+  }
+
+  function resetButton(){
+    return String(cBarras).length != 0 || nomeProduto.length != 0  || nomeVendaProduto.length != 0
+    || String(qtdProduto).length != 0 || String(precoProduto).length != 0
+    
   }
 
   async function search (codBarras: String){
@@ -29,6 +35,7 @@ function NovoProduto() {
       const result = await axios(`http://localhost:5000/scrape?url=${encodeURIComponent(url)}`);
       let data = String(result.data[1].text.split("-")[0]);
       data = data.split(":")[0].split("|")[0];
+      setNomeProduto("404");
       setNomeProduto(data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -64,7 +71,7 @@ function NovoProduto() {
 
       searchDB(String(cBarras));
       
-      if (checked && nomeProduto.length == 0){
+      if (checked && found == false){
         search(String(cBarras));
       }
     }else {
@@ -75,12 +82,13 @@ function NovoProduto() {
   async function addProduct() {
     
     const url = "http://localhost:5000/products";
+    const qtdEnviado = qtdProduto != ""? qtdProduto : "1"; 
     const produto = {
       "barcode": cBarras,
       "name": nomeProduto,
       "salesName": nomeVendaProduto,
       "price": precoProduto,
-      "qtd": qtdProduto,
+      "qtd": qtdEnviado,
     };
 
     const result = await axios.post(url, produto);
@@ -132,6 +140,7 @@ function NovoProduto() {
     setNomeVendaProduto('');
     setPrecoProduto('');
     setQtdProduto('');
+    
   }
 
   return (
@@ -147,6 +156,7 @@ function NovoProduto() {
         <Grid>
           <Grid.Col span={10}>
             <NumberInput
+              id='idCodigo'
               value={cBarras}
               onChange={setCBarras}
               onKeyUp={()=> cBarrasOnChange()} 
@@ -201,9 +211,13 @@ function NovoProduto() {
           allowNegative={false} 
           hideControls={true}/>
 
-        <Text>{erros}</Text>
+        <Text 
+          pe={'md'} pb={'sm'} ps={'md'} >
+          {erros}
+        </Text>
 
         <Center>
+          <Button disabled={!resetButton()} type='submit' onClick={reset}>Limpar</Button>
           <Button disabled={!found} type='submit' onClick={editProduct}>Atualizar</Button>
           <Button disabled={disableButton()} type='submit' onClick={addProduct}>Cadastrar</Button>
         </Center>

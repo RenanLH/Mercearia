@@ -4,14 +4,13 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { NavLink } from "react-router-dom";
 import axios from "axios";
 
-
-const products = [{
-  barcode: "",
-  name:"",
-  salesName: "",
-  price: "0",
-  qtd: ""    
-},]
+type product = {
+  barcode: string,
+  name: string,
+  salesName: string,
+  price: string,
+  qtd: string 
+};
 
 const groceries = ['🍎 Apples', '🍌 Bananas', '🥦 Broccoli', '🥕 Carrots', '🍫 Chocolate'];
 
@@ -44,14 +43,22 @@ function NovaVenda (){
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
   
+  
+
   const [dpBoxValue, setDpBoxValue] = useState<string | null>(null);
   const [erros, setErros] = useState<string | null>(null);
+
+  const [products, setProducts] = useState<product[]>([]);
 
   const [lastCBarras, setLastCBarras] = useState<string>('');
   const [cBarras, setCBarras] = useState<string | number>('');
   const [total, setTotal] = useState<number>(0.0);
   const [preco, setPreco] = useState<string | number>('');
   const [qtd, setQtd] = useState<string | number>('');
+
+  function removeItem(removeAtIndex: number){
+    setProducts((prev) => (prev.filter((_, index) => index != removeAtIndex))); 
+  }
 
   function reset(){
     setLastCBarras('')
@@ -62,38 +69,36 @@ function NovaVenda (){
     setErros('');
   }
 
+
   
   async function searchDB (codBarras: String){
-    try {
+    try { 
 
       const sameProduct = products.filter((p)=> p.barcode==cBarras)[0];
       if (sameProduct != undefined && sameProduct != null){
-        const newProduct = {
-          barcode: sameProduct.barcode,
-          name: sameProduct.name,
-          salesName: sameProduct.salesName,
-          price: sameProduct.price,
-          qtd: String(qtd)
-        }
+        
+        if (String(qtd).length == 0) 
+            setQtd(1)
 
-        products.push(newProduct);
+        sameProduct.qtd += Number(qtd);
         setTimeout(() => {
           reset()
         }, 0);
       }else {
         const result = await axios.get("http://localhost:5000/products?codBarras=" + codBarras);
-
         if (result.status == 200){
-          const product = result.data;
+          const productDb = result.data;
   
-          if(Number(qtd) >= 1) product.qtd = qtd;
-          else product.qtd = 1;
-  
-          products.push(product);
-            setTimeout(() => {
-              reset()
-            }, 500);
-          }
+          if(Number(qtd) >= 1) productDb.qtd = qtd;
+          else productDb.qtd = 1;
+
+          setProducts((prev) => [...prev, productDb]);
+
+          products.push(productDb);
+          setTimeout(() => {
+            reset()
+          }, 500);
+        }
       }
    
     } catch (error) {
@@ -107,14 +112,24 @@ function NovaVenda (){
   }
 
   function adicionarBtOnclick(){
-    if (dpBoxValue != null && preco != '' && qtd != '') {
-      products.push({
+    if (dpBoxValue != null && preco != '') {
+
+      if (String(qtd).length == 0) 
+        setQtd(1)
+
+      const uncategorized = {
         barcode: "",
         name: dpBoxValue as string,
         salesName: "",
         price: numberToMoney(preco),
-        qtd: String(qtd)});
+        qtd: String(qtd)
+      }
+      const existentProduct = products.find((item) => item.name == uncategorized.name);
       
+      if (existentProduct == undefined)   
+        setProducts((prev) => [...prev, uncategorized])
+      else
+        existentProduct.qtd += Number(qtd);
       reset()
       setTotal(getTotal());
     }else {
@@ -206,9 +221,10 @@ function NovaVenda (){
         fixedDecimalScale={true}
         hideControls={true}
         prefix="R$ "/>
-
       <Button disabled={disableButton()} onClick={adicionarBtOnclick}> Adicionar</Button> 
+
     </Flex>
+    <Button disabled={false} type='submit' onClick={reset}>Finalizar</Button>
 
     <Grid>
         <Grid.Col span={6}>
@@ -227,7 +243,7 @@ function NovaVenda (){
 
     <Text pr={ "15px"} ta={"end"} size="25px" c={"#FFFF"}>{showMoney(total)} </Text>    
 
-    {products.map((product, _index)=>
+    {products.map((product, index)=>
       <Grid justify={"start"}>
         <Grid.Col span={6}>
           <Text ps={"md"} c={"#ffff"} size="20px" truncate="end">{product.name}</Text>
@@ -238,6 +254,8 @@ function NovaVenda (){
         <Grid.Col span={2}>
           <Text pl={"55px"} c={"#ffff"} size="20px"> {product.qtd}</Text>
         </Grid.Col>
+        <Button hidden={true} disabled={false} type='submit' onClick={()=>removeItem(index)}>Limpar</Button>
+
       </Grid>
       )}
  
