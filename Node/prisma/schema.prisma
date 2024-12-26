@@ -20,12 +20,13 @@ model Product {
   salesName String
   qtd       String
   price     String
-  sale      Sale?   @relation(fields: [saleId], references: [id])
-  saleId    String? @db.ObjectId
 }
 
 model Sale {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  productList Product[]
   total       String
+  date        DateTime
+  products    Json
 }
+
+

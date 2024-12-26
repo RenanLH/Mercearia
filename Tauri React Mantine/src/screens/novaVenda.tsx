@@ -9,10 +9,10 @@ type product = {
   name: string,
   salesName: string,
   price: string,
-  qtd: string 
+  qtd: string | number  
 };
 
-const groceries = ['🍎 Apples', '🍌 Bananas', '🥦 Broccoli', '🥕 Carrots', '🍫 Chocolate'];
+const groceries = ['🍎 Frutas', '🍫 Diversos'];
 
 const options = groceries.map((item) => (
   <Combobox.Option value={item} key={item}>
@@ -53,8 +53,8 @@ function NovaVenda (){
   const [lastCBarras, setLastCBarras] = useState<string>('');
   const [cBarras, setCBarras] = useState<string | number>('');
   const [total, setTotal] = useState<number>(0.0);
-  const [preco, setPreco] = useState<string | number>('');
-  const [qtd, setQtd] = useState<string | number>('');
+  const [preco, setPreco] = useState<string | number>('0');
+  const [qtd, setQtd] = useState<string | number>('1');
 
   function removeItem(removeAtIndex: number){
     setProducts((prev) => (prev.filter((_, index) => index != removeAtIndex))); 
@@ -70,17 +70,46 @@ function NovaVenda (){
   }
 
 
+  async function finishSale(){
+    const url = "http://localhost:5000/sales";
+
+    const sale = {
+      "productList" : products,
+      "total": total
+    };
+
+    const result = await axios.post(url, sale);
+
+    if (result.status == 200){
+      reset();
+      setErros('Venda Finalizada com Sucesso!');
+
+      setTimeout(() => {
+        setErros('');
+      }, 5000);
+    }else {
+      setErros('Erro!' + result.data.text);
+    }
+  }
+
+
+  
+  function disableFinishButton(){
+    return products.length == 0; 
+  }
+
+
   
   async function searchDB (codBarras: String){
     try { 
 
-      const sameProduct = products.filter((p)=> p.barcode==cBarras)[0];
-      if (sameProduct != undefined && sameProduct != null){
+      const existentProduct = products.find((item)=> item.barcode == cBarras);
+      if (existentProduct != undefined && existentProduct != null){
         
         if (String(qtd).length == 0) 
             setQtd(1)
 
-        sameProduct.qtd += Number(qtd);
+        existentProduct.qtd = Number(existentProduct.qtd) +  Number(qtd);
         setTimeout(() => {
           reset()
         }, 0);
@@ -93,8 +122,6 @@ function NovaVenda (){
           else productDb.qtd = 1;
 
           setProducts((prev) => [...prev, productDb]);
-
-          products.push(productDb);
           setTimeout(() => {
             reset()
           }, 500);
@@ -112,10 +139,7 @@ function NovaVenda (){
   }
 
   function adicionarBtOnclick(){
-    if (dpBoxValue != null && preco != '') {
-
-      if (String(qtd).length == 0) 
-        setQtd(1)
+    if (dpBoxValue != null && preco != '' ) {
 
       const uncategorized = {
         barcode: "",
@@ -129,7 +153,7 @@ function NovaVenda (){
       if (existentProduct == undefined)   
         setProducts((prev) => [...prev, uncategorized])
       else
-        existentProduct.qtd += Number(qtd);
+        existentProduct.qtd = String(Number(existentProduct.qtd) + Number(qtd));
       reset()
       setTotal(getTotal());
     }else {
@@ -185,7 +209,7 @@ function NovaVenda (){
         hideControls={true}/>
     </Center>
 
-    <Flex pb={"5%"} gap={"md"} justify={"center"} direction={{ base: 'column', sm: 'row' }}>
+    <Flex pb={"2%"} gap={"md"} justify={"center"} direction={{ base: 'column', sm: 'row' }}>
       <Combobox width={"10%"} 
         store={combobox}
         onOptionSubmit={(val) => {
@@ -224,7 +248,12 @@ function NovaVenda (){
       <Button disabled={disableButton()} onClick={adicionarBtOnclick}> Adicionar</Button> 
 
     </Flex>
-    <Button disabled={false} type='submit' onClick={reset}>Finalizar</Button>
+
+    <Flex pb={"2%"} pe={"2%"} justify={"end"} direction={{ base: 'column', sm: 'row' }}>
+
+      <Button disabled={disableFinishButton()} type='submit' onClick={finishSale}>Finalizar</Button>
+    </Flex>
+
 
     <Grid>
         <Grid.Col span={6}>

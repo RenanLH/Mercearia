@@ -101,11 +101,37 @@ app.get("/scrape", async (req, res) => {
 
       await prisma.sale.create({
         data: {
-          productList: sale.productList,
-          total: String(sale.total)
+          products: sale.productList,
+          total: String(sale.total),
+          date: new Date().toISOString()
         }
       })    
+      res.status(200).json("")
+      
+    } catch (error) {
+      console.log(error);
+      res.status(500).json("") 
+    }
+  })
 
+
+  app.get("/sales", async(req, res) => {
+    try {
+      const dateRequested = req.body;
+
+      console.log(req.query);
+
+      const response = await prisma.sale.findMany({
+        where :{
+          date : {
+            lte : new Date()
+          }
+        }
+      })
+
+      console.log(response)
+
+      res.status(200).json(response)
       
     } catch (error) {
       console.log(error);
