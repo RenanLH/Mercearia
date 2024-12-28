@@ -162,8 +162,9 @@ function NovaVenda (){
    
   }
 
+  /// arrumar 8
   function cBarrasOnChange(){
-    if (String(cBarras).length == 13 || String(cBarras).length == 8 && String(cBarras) != String(lastCBarras)){
+    if (String(cBarras).length == 13 && String(cBarras) != String(lastCBarras)){
       setLastCBarras(String(cBarras));
 
       searchDB(String(cBarras));

@@ -52,6 +52,8 @@ app.get("/scrape", async (req, res) => {
      
       res.status(200).json("Produto cadastrado com sucesso");
     } catch (error) {
+      console.log(error);
+
       res.status(500).json({message: "Erro ao cadastrar o produto" + error});
     }
   });
@@ -72,6 +74,7 @@ app.get("/scrape", async (req, res) => {
       
       res.status(200).json("Produto cadastrado com sucesso");
     } catch (error) {
+      console.log(error);
       res.status(500).json({message: "Erro ao cadastrar o produto" + error});
     }
   });
@@ -99,13 +102,29 @@ app.get("/scrape", async (req, res) => {
     try {
       const sale = req.body;
 
+      const productSale = [];
+
+      console.log(sale.productList.length);
+      console.log(sale.productList[0]);
+
+      sale.productList.forEach(element => {
+        const product = JSON.stringify(element);
+        productSale.push(product);  
+      });
+
       await prisma.sale.create({
         data: {
-          products: sale.productList,
+          products: productSale,
           total: String(sale.total),
           date: new Date().toISOString()
         }
       })    
+
+      
+      console.log(productSale.length);
+
+      productSale.forEach((element) => console.log(element));
+
       res.status(200).json("")
       
     } catch (error) {
@@ -117,14 +136,17 @@ app.get("/scrape", async (req, res) => {
 
   app.get("/sales", async(req, res) => {
     try {
-      const dateRequested = req.body;
+      const dateRequested = new Date();
+      const dayBefore = new Date(); 
+      dayBefore.setDate(dayBefore.getDate()-1);
 
-      console.log(req.query);
+      console.log(dayBefore);
 
-      const response = await prisma.sale.findMany({
+      const response = await prisma.sale.findFirst({
         where :{
           date : {
-            lte : new Date()
+            lte : new Date(),
+            gt: dayBefore
           }
         }
       })

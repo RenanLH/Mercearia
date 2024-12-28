@@ -8,15 +8,31 @@ import { useState } from 'react';
 
 function Historico() {
 
-    const [data, setData] = useState<string>('NOT FOUND');
+    type Product = {
+        id: string
+        barcode: string
+        name: string
+        salesName: string
+        qtd: number
+        price: string 
+    }
+
+    type Venda = {
+        id: string
+        date: string
+        total: string
+        products: Product[]
+    }
+    const [data, setData] = useState<Venda | null>(null);
 
     async function consultarHistorico() {
 
         const url = "http://localhost:5000/sales?date=";
 
-     const result = await axios.get(url + new Date().toISOString());
-        setData(String(result));
-        console.log(result);
+        const result = await axios.get(url + new Date().toISOString());
+        
+        const venda = result.data as Venda;
+        setData(venda);
 
     }
 
@@ -35,8 +51,15 @@ function Historico() {
 
             <Button ml="50px" mt={25} onClick={consultarHistorico}>Enviar</Button>
         </Center>
+        {
+            data != null &&
+            <div>
+                <Text mt={"2%"} size='xl'>Data {new Date(String(data?.date)).toLocaleDateString()}</Text>
+                <Text size='xl'>Total R${data?.total}</Text>
 
-        <Text>{data}</Text>
+            </div>  
+           
+        }
             
 
 

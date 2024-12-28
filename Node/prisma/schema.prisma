@@ -26,7 +26,7 @@ model Sale {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   total       String
   date        DateTime
-  products    Json
+  products    String[]
 }
 
 
