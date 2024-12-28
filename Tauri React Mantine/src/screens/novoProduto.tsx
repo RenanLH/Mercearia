@@ -1,12 +1,13 @@
 import { ActionIcon, Button, Center, Checkbox, Grid, NumberInput, rem, TextInput, Text} from '@mantine/core'
 import { IconArrowLeft } from '@tabler/icons-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import axios from 'axios'
-import { useTimeout } from '@mantine/hooks'
+
 
 function NovoProduto() {
   const [found, setFound] = useState<boolean>(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [lastCBarras, setLastCBarras] = useState<string>('');
   const [title, setTitle] = useState<string>('Novo Produto');
   const [erros, setErros] = useState<string>('');
@@ -18,25 +19,45 @@ function NovoProduto() {
   const [precoProduto, setPrecoProduto] = useState<number | string>('')
 
 
-  function disableButton(){
-    return found || String(cBarras).length == 0 || nomeProduto.length == 0
-    || String(precoProduto).length == 0; 
+  function disableAddButton(){
+    return !found && String(cBarras).length != 0 && String(nomeProduto).length != 0
+    && String(precoProduto).length != 0; 
   }
 
-  function resetButton(){
+  function disableResetButton(){
     return String(cBarras).length != 0 || nomeProduto.length != 0  || nomeVendaProduto.length != 0
     || String(qtdProduto).length != 0 || String(precoProduto).length != 0
     
   }
 
+  function resetProduct(){
+    setFound(false);
+    setTitle('Novo Produto')
+    setLastCBarras('');
+    setCBarras('');
+    setNomeProduto('');
+    setNomeVendaProduto('');
+    setPrecoProduto('');
+    setQtdProduto('');
+    
+    inputRef.current?.focus();
+    
+  }
+
   async function search (codBarras: String){
     try {
+
       const url = "https://www.google.com/search?q=" + codBarras;
       const result = await axios(`http://localhost:5000/scrape?url=${encodeURIComponent(url)}`);
-      let data = String(result.data[1].text.split("-")[0]);
+      let data = String(result.data[0].text.split("-")[0]);
+
+      if (data.includes(String(codBarras)))
+        data = String(result.data[1].text)
+      
       data = data.split(":")[0].split("|")[0];
-      setNomeProduto("404");
       setNomeProduto(data);
+
+
     } catch (error) {
       console.error("Error fetching data:", error);
     } 
@@ -49,31 +70,38 @@ function NovoProduto() {
 
       if (result.status == 200){
         const product = result.data;
-
-        setTitle("Atualizar Produto")
+        
+        setTitle("Atualizar Produto");
         setNomeProduto(product.name);
         setNomeVendaProduto(product.salesName);
         setPrecoProduto(product.price);
         setQtdProduto(product.qtd);
         setFound(true);
+
+        return true;
+
       }else {
-        setFound(false);
+        return false;
       }
    
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.log("Error fetching data:" + error);
+
     } 
   }
 
   function cBarrasOnChange(){
-    if (String(cBarras).length == 13 && String(cBarras) != String(lastCBarras)){
+    if (String(cBarras).length == 13 || String(cBarras).length == 8 && String(cBarras) != String(lastCBarras)){
       setLastCBarras(String(cBarras));
 
-      searchDB(String(cBarras));
+      const result = searchDB(String(cBarras));
       
-      if (checked && found == false){
-        search(String(cBarras));
-      }
+      result.then((value) => {
+        if (checked && !value && String(cBarras).length == 13){
+          search(String(cBarras));
+        }
+      })
+     
     }else {
       setCBarras(String(cBarras).slice(0, 13));
     }
@@ -94,9 +122,8 @@ function NovoProduto() {
     const result = await axios.post(url, produto);
     if (result.status == 200){
     
-      reset();
+      resetProduct();
       setErros('Produto Cadastrado com Sucesso!');
-
       setTimeout(() => {
         setErros('');
       }, 5000);
@@ -121,26 +148,17 @@ function NovoProduto() {
    
     if (result.status == 200){
     
-      reset();
+      resetProduct();
 
       setErros('Produto Atualizado com Sucesso!');
 
       setTimeout(() => {
         setErros('');
       }, 5000);
+    }else {
+      setErros('Erro ao Atualizar o Produto!' + result.status);
+
     }
-  }
-
-
-  function reset(){
-    setFound(false);
-    setLastCBarras('');
-    setCBarras('');
-    setNomeProduto('');
-    setNomeVendaProduto('');
-    setPrecoProduto('');
-    setQtdProduto('');
-    
   }
 
   return (
@@ -157,6 +175,7 @@ function NovoProduto() {
           <Grid.Col span={10}>
             <NumberInput
               id='idCodigo'
+              ref={inputRef}
               value={cBarras}
               onChange={setCBarras}
               onKeyUp={()=> cBarrasOnChange()} 
@@ -186,6 +205,7 @@ function NovoProduto() {
 
         <TextInput 
           value={nomeVendaProduto} 
+          disabled={true}
           onChange={(event)=>setNomeVendaProduto(event.currentTarget.value)} 
           pe={'md'} pb={'sm'} ps={'md'} 
           placeholder='Nome de Venda do Produto'/>
@@ -217,9 +237,9 @@ function NovoProduto() {
         </Text>
 
         <Center>
-          <Button disabled={!resetButton()} type='submit' onClick={reset}>Limpar</Button>
+          <Button disabled={!disableResetButton()} type='submit' onClick={resetProduct}>Limpar</Button>
           <Button disabled={!found} type='submit' onClick={editProduct}>Atualizar</Button>
-          <Button disabled={disableButton()} type='submit' onClick={addProduct}>Cadastrar</Button>
+          <Button disabled={!disableAddButton()} type='submit' onClick={addProduct}>Cadastrar</Button>
         </Center>
     </div>
   )

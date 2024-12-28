@@ -28,7 +28,7 @@ app.get("/scrape", async (req, res) => {
           href: $(element).attr("href"),
         });
       });
-
+      
       res.json(data);
     } catch (error) {
       res.status(500).json({ message: "Error accessing the URL"  + error});

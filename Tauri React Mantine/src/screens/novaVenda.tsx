@@ -1,5 +1,5 @@
 import { Button, Center, Combobox, Flex, Grid, Input, InputBase, NumberInput, Text, useCombobox, ActionIcon, rem } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconArrowLeft } from '@tabler/icons-react';
 import { NavLink } from "react-router-dom";
 import axios from "axios";
@@ -53,20 +53,20 @@ function NovaVenda (){
   const [lastCBarras, setLastCBarras] = useState<string>('');
   const [cBarras, setCBarras] = useState<string | number>('');
   const [total, setTotal] = useState<number>(0.0);
-  const [preco, setPreco] = useState<string | number>('0');
+  const [preco, setPreco] = useState<string | number>('');
   const [qtd, setQtd] = useState<string | number>('1');
 
   function removeItem(removeAtIndex: number){
     setProducts((prev) => (prev.filter((_, index) => index != removeAtIndex))); 
   }
-
   function reset(){
     setLastCBarras('')
     setCBarras('')
     setQtd(1);
-    setPreco(0);
+    setPreco("");
     setDpBoxValue(null);
     setErros('');
+
   }
 
 
@@ -112,7 +112,7 @@ function NovaVenda (){
         existentProduct.qtd = Number(existentProduct.qtd) +  Number(qtd);
         setTimeout(() => {
           reset()
-        }, 0);
+        }, 500);
       }else {
         const result = await axios.get("http://localhost:5000/products?codBarras=" + codBarras);
         if (result.status == 200){
@@ -163,13 +163,12 @@ function NovaVenda (){
   }
 
   function cBarrasOnChange(){
-    if (String(cBarras).length == 13 && String(cBarras) != String(lastCBarras)){
+    if (String(cBarras).length == 13 || String(cBarras).length == 8 && String(cBarras) != String(lastCBarras)){
       setLastCBarras(String(cBarras));
 
       searchDB(String(cBarras));
     
     }else {
-      const begin = String(cBarras).length
       setCBarras(String(cBarras).slice(0, 13));
     }
   }
