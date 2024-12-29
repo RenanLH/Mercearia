@@ -116,7 +116,6 @@ app.get("/scrape", async (req, res) => {
         data: {
           products: productSale,
           total: String(sale.total),
-          date: new Date().toISOString()
         }
       })    
 
@@ -136,22 +135,23 @@ app.get("/scrape", async (req, res) => {
 
   app.get("/sales", async(req, res) => {
     try {
-      const dateRequested = new Date();
+      const dateRequested = new Date(req.query.date);
       const dayBefore = new Date(); 
-      dayBefore.setDate(dayBefore.getDate()-1);
+      dayBefore.setDate(dateRequested.getDate()-1);
+      console.log("in:" + dateRequested);
 
-      console.log(dayBefore);
+      console.log("before:" + dayBefore);
 
-      const response = await prisma.sale.findFirst({
+
+      const response = await prisma.sale.findMany({
         where :{
           date : {
-            lte : new Date(),
-            gt: dayBefore
+            lt: dateRequested,
+            gte: dayBefore
+            
           }
         }
       })
-
-      console.log(response)
 
       res.status(200).json(response)
       

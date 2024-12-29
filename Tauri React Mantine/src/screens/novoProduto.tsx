@@ -11,7 +11,8 @@ function NovoProduto() {
   const [lastCBarras, setLastCBarras] = useState<string>('');
   const [title, setTitle] = useState<string>('Novo Produto');
   const [erros, setErros] = useState<string>('');
-  const [cBarras, setCBarras] = useState<number | string>('')
+  const [cBarras, setCBarras] = useState<string>('')
+
   const [checked, setChecked] = useState(true);
   const [nomeProduto, setNomeProduto] = useState('')
   const [nomeVendaProduto, setNomeVendaProduto] = useState('')
@@ -90,7 +91,8 @@ function NovoProduto() {
     } 
   }
 
-  function cBarrasOnChange(){
+
+  function cBarrasOnKeyUp(){
     if (String(cBarras).length == 13 || String(cBarras).length == 8 && String(cBarras) != String(lastCBarras)){
       setLastCBarras(String(cBarras));
 
@@ -105,6 +107,14 @@ function NovoProduto() {
     }else {
       setCBarras(String(cBarras).slice(0, 13));
     }
+  }
+
+  function cBarrasOnChange(val: string){
+
+    if (/^\d*$/.test(val)) {
+      setCBarras(val);
+    } 
+    
   }
 
   async function addProduct() {
@@ -173,19 +183,16 @@ function NovoProduto() {
 
         <Grid>
           <Grid.Col span={10}>
-            <NumberInput
-              id='idCodigo'
-              ref={inputRef}
+
+            <TextInput
               value={cBarras}
-              onChange={setCBarras}
-              onKeyUp={()=> cBarrasOnChange()} 
-              autoFocus={true}
+              onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
+              onKeyUp={cBarrasOnKeyUp}
+              ref = {inputRef}
               pe={'md'} pb={'sm'} ps={'md'} 
-              placeholder='Código de Barras' 
-              allowDecimal={false}
-              allowNegative={false}
-              hideControls={true}
-              />
+              placeholder="Código de Barras"
+            />
+            
           </Grid.Col>
           <Grid.Col span={2}>
             <Checkbox 
@@ -206,7 +213,7 @@ function NovoProduto() {
         <TextInput 
           value={nomeVendaProduto} 
           disabled={true}
-          onChange={(event)=>setNomeVendaProduto(event.currentTarget.value)} 
+          onChange={(event)=>setNomeVendaProduto(event.currentTarget.value)}           
           pe={'md'} pb={'sm'} ps={'md'} 
           placeholder='Nome de Venda do Produto'/>
 

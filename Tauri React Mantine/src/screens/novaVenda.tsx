@@ -73,9 +73,14 @@ function NovaVenda (){
   async function finishSale(){
     const url = "http://localhost:5000/sales";
 
+
+    const options:Intl.DateTimeFormatOptions  = { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric',hour:'2-digit', minute:'2-digit', second:'2-digit' };
+    const date = new Date().toLocaleDateString("pt-BR", options);
+
     const sale = {
       "productList" : products,
-      "total": total
+      "total": total,
+      "date": date
     };
 
     const result = await axios.post(url, sale);
@@ -198,7 +203,10 @@ function NovaVenda (){
         p="sm" 
         placeholder="Código de Barras" 
         hideControls={true}
+        allowDecimal={false} 
+        allowNegative={false} 
         autoFocus={true}/>
+        
 
       <NumberInput 
         value={qtd} 
@@ -284,9 +292,10 @@ function NovaVenda (){
           <Text pl={"55px"} c={"#ffff"} size="20px"> {product.qtd}</Text>
         </Grid.Col>
         <Button hidden={true} disabled={false} type='submit' onClick={()=>removeItem(index)}>Limpar</Button>
-
       </Grid>
       )}
+
+      
  
   </div>
 }
