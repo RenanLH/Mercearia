@@ -1,6 +1,8 @@
-import { Button, Center, Checkbox, Grid, Image, NumberInput, Text } from '@mantine/core'
+import { ActionIcon, Button, Center, Checkbox, Grid, Image, NumberInput, rem, Text } from '@mantine/core'
 import { DateTimePicker, DateValue } from '@mantine/dates';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { event } from '@tauri-apps/api';
+import { NavLink } from 'react-router-dom'
 import axios from 'axios';
 import { useState } from 'react';
 
@@ -100,9 +102,16 @@ function Historico() {
  
 
   return (
-    <div className="container">
-        <Text size="55px" c={'#FFFF'} mb={75}>Historico</Text>
+    <div>
+        <NavLink to="/">
+            <ActionIcon size={42} variant="default" aria-label="ActionIcon with size as a number">
+              <IconArrowLeft style={{ width: rem(24), height: rem(24) }} />
+            </ActionIcon>    
+        </NavLink>
 
+        <Center>
+            <Text size="55px" c={'#FFFF'} mb={75}>Historico</Text>
+        </Center>
         <Center>
             <DateTimePicker 
                 label="Escolha uma data"

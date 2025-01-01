@@ -1,6 +1,6 @@
-import { ActionIcon, Button, Center, Checkbox, Grid, NumberInput, rem, TextInput, Text} from '@mantine/core'
+import { ActionIcon, Button, Center, Checkbox, Grid, NumberInput, rem, TextInput, Text, Flex} from '@mantine/core'
 import { IconArrowLeft } from '@tabler/icons-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import axios from 'axios'
 
@@ -20,15 +20,24 @@ function NovoProduto() {
   const [precoProduto, setPrecoProduto] = useState<number | string>('')
 
 
+  useEffect(() => {
+    inputRef?.current?.focus();
+    
+  }, []);
+
   function disableAddButton(){
     return !found && String(cBarras).length != 0 && String(nomeProduto).length != 0
     && String(precoProduto).length != 0; 
   }
 
   function disableResetButton(){
-    return String(cBarras).length != 0 || nomeProduto.length != 0  || nomeVendaProduto.length != 0
+    return String(cBarras).length != 0 || nomeProduto.length != 0 || nomeVendaProduto.length != 0
     || String(qtdProduto).length != 0 || String(precoProduto).length != 0
     
+  }
+
+  function disableSearchButton(){
+    return!(String(cBarras).length > 8 && !found);
   }
 
   function resetProduct(){
@@ -44,6 +53,20 @@ function NovoProduto() {
     inputRef.current?.focus();
     
   }
+
+  
+function numberToMoney(value:number | string){
+  value = String(value).replace(",", ".");
+  return  String(Number(value).toFixed(2)).replace(".", ",");
+}
+
+function showMoney(value: number| string){
+  if (value == "0"){
+    return "";
+  }
+  const srtValue = numberToMoney(value);
+  return "R$ "  + srtValue;
+}
 
   async function search (codBarras: String){
     try {
@@ -118,7 +141,6 @@ function NovoProduto() {
   }
 
   async function addProduct() {
-    
     const url = "http://localhost:5000/products";
     const qtdEnviado = qtdProduto != ""? qtdProduto : "1"; 
     const produto = {
@@ -127,7 +149,7 @@ function NovoProduto() {
       "salesName": nomeVendaProduto,
       "price": precoProduto,
       "qtd": qtdEnviado,
-    };
+    };  
 
     const result = await axios.post(url, produto);
     if (result.status == 200){
@@ -144,7 +166,6 @@ function NovoProduto() {
   }
 
   async function editProduct() {
-     
     const url = "http://localhost:5000/products";
     const produto = {
       "barcode": cBarras,
@@ -182,8 +203,7 @@ function NovoProduto() {
         <h1 style={{color:'white'}}>{title}</h1>
 
         <Grid>
-          <Grid.Col span={10}>
-
+          <Grid.Col span={9}>
             <TextInput
               value={cBarras}
               onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
@@ -192,8 +212,14 @@ function NovoProduto() {
               pe={'md'} pb={'sm'} ps={'md'} 
               placeholder="Código de Barras"
             />
-            
+
           </Grid.Col>
+
+          <Grid.Col span={1}>
+          <Button disabled={disableSearchButton()} type='submit' onClick={()=> searchDB(cBarras)}>Buscar</Button>
+
+          </Grid.Col>
+          
           <Grid.Col span={2}>
             <Checkbox 
               checked={checked} 
@@ -243,11 +269,11 @@ function NovoProduto() {
           {erros}
         </Text>
 
-        <Center>
+        <Flex gap={"md"} justify={"center"}>
           <Button disabled={!disableResetButton()} type='submit' onClick={resetProduct}>Limpar</Button>
           <Button disabled={!found} type='submit' onClick={editProduct}>Atualizar</Button>
           <Button disabled={!disableAddButton()} type='submit' onClick={addProduct}>Cadastrar</Button>
-        </Center>
+        </Flex>
     </div>
   )
 }

@@ -116,6 +116,7 @@ app.get("/scrape", async (req, res) => {
         data: {
           products: productSale,
           total: String(sale.total),
+          date: new Date()
         }
       })    
 
