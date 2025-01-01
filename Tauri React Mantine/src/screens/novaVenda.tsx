@@ -312,14 +312,15 @@ return <div>
     </Grid>    
 
     <Grid>
+        
+        <Grid.Col span={2}>
+          <Text lh={"h1"} p="md" c={"#FFFF"} size="25px">{"Quantidade "}</Text>
+        </Grid.Col>
         <Grid.Col span={5}>
           <Text p="md" c={"#FFFF"} size="25px">{"Nome do Produto"}</Text>
         </Grid.Col>
         <Grid.Col span={2}>
           <Text p="md" c={"#FFFF"} size="25px">{"Preço "}</Text>
-        </Grid.Col>
-        <Grid.Col span={2}>
-          <Text lh={"h1"} p="md" c={"#FFFF"} size="25px">{"Quantidade "}</Text>
         </Grid.Col>
         <Grid.Col span={1}>
           <Text  lh={"h1"} p="md" pl={"10%"} ta={"end"} c={"#FFFF"} size="25px">{"TOTAL"}</Text>
@@ -341,15 +342,16 @@ return <div>
 
     {products.map((product, index)=>
       <Grid justify={"start"}>
+        <Grid.Col span={2}>
+          <Text pl={"55px"} c={"#ffff"} size="20px"> {product.qtd}</Text>
+        </Grid.Col>
         <Grid.Col span={5}>
           <Text ps={"md"} c={"#ffff"} size="20px" truncate="end">{product.name}</Text>
         </Grid.Col>
         <Grid.Col span={2}>
           <Text pl={"15px"} c={"#ffff"} size="20px">{showMoney(product.price)}</Text>
         </Grid.Col>
-        <Grid.Col span={2}>
-          <Text pl={"55px"} c={"#ffff"} size="20px"> {product.qtd}</Text>
-        </Grid.Col>
+        
         <Grid.Col ta={"end"} span={2}>
           <Button hidden={true} disabled={false} type='submit' onClick={()=>removeItem(index)}>Remover</Button>
         </Grid.Col>
