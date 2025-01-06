@@ -1,13 +1,9 @@
-import { ActionIcon, Button, Center, Checkbox, Grid, Image, NumberInput, rem, Text } from '@mantine/core'
+import { ActionIcon, Button, Center, Grid, rem, Text } from '@mantine/core'
 import { DateTimePicker, DateValue } from '@mantine/dates';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { event } from '@tauri-apps/api';
 import { NavLink } from 'react-router-dom'
 import axios from 'axios';
 import { useState } from 'react';
-
-
-
 
 function Historico() {
 

@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Center, Checkbox, Grid, NumberInput, rem, TextInput, Text, Flex} from '@mantine/core'
+import { ActionIcon, Button, Checkbox, Grid, NumberInput, rem, TextInput, Text, Flex} from '@mantine/core'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
@@ -54,19 +54,6 @@ function NovoProduto() {
     
   }
 
-  
-function numberToMoney(value:number | string){
-  value = String(value).replace(",", ".");
-  return  String(Number(value).toFixed(2)).replace(".", ",");
-}
-
-function showMoney(value: number| string){
-  if (value == "0"){
-    return "";
-  }
-  const srtValue = numberToMoney(value);
-  return "R$ "  + srtValue;
-}
 
   async function search (codBarras: String){
     try {

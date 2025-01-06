@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));  
 
 app.get("/scrape", async (req, res) => {
     const url = req.query.url;
@@ -138,7 +138,8 @@ app.get("/scrape", async (req, res) => {
     try {
       const dateRequested = new Date(req.query.date);
       const dayBefore = new Date(); 
-      dayBefore.setDate(dateRequested.getDate()-1);
+      dayBefore.setDate(dateRequested.getDate());
+      dayBefore.setHours(0,0,0);
       console.log("in:" + dateRequested);
 
       console.log("before:" + dayBefore);
