@@ -29,23 +29,24 @@ function NovaVenda (){
   });
 
 
-  const [dpBoxValue, setDpBoxValue] = useState<string | null>(null);
+  const [dpBoxValue, setDpBoxValue] = useState<string>('Diversos');
   const [erros, setErros] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  const [products, setProducts] = useState<product[]>([]);
 
+  const [products, setProducts] = useState<product[]>([]);
+  const [canPrint, setCanPrint] = useState<boolean>(false);
   const [lastCBarras, setLastCBarras] = useState<string>('');
   const [cBarras, setCBarras] = useState<string | number>('');
   const [valorPago, setValorPago] = useState<string | number>('');
   const [valorTroco, setValorTroco] = useState<string | number>(0.0);
 
-  const groceries = ['Diversos','Pão Frances', 'Ovo', 'Gelo 1Kg', 'Gelo 5Kg', 'Carvão 4Kg', 'Carvão 9Kg', 'Lenha', 'Sabão em Barra'];
+  const groceries = ['Diversos','Pão Frances', 'Ovos', 'Gelo 1Kg', 'Gelo 5Kg', 'Carvão 4Kg', 'Carvão 9Kg', 'Lenha', 'Sabão em Barra'];
   const [total, setTotal] = useState<number>(0.0);
   const [preco, setPreco] = useState<string | number>('');
   const [qtd, setQtd] = useState<string | number>('1');
 
   function removeItem(removeAtIndex: number){
+    inputRef?.current?.focus();   
     setProducts((prev) => (prev.filter((_, index) => index != removeAtIndex))); 
   }
   function reset(){
@@ -55,7 +56,7 @@ function NovaVenda (){
     setValorPago('');
     setQtd(1);
     setPreco("");
-    setDpBoxValue(null);
+    setDpBoxValue('Diversos');
     setErros('');
     inputRef?.current?.focus(); 
   }
@@ -71,6 +72,7 @@ function numberToMoney(value:number | string){
   return  String(Number(value).toFixed(2)).replace(".", ",");
 }
 
+
 function showMoney(value: number| string){
   if (value == 0  ){
     return "";
@@ -85,8 +87,8 @@ function showMoney(value: number| string){
     }else if (item == "Pão Frances"){
       setPreco(0.6);
     }
-    else if (item == "Ovo"){
-      setPreco(0.75);
+    else if (item == "Ovos"){
+      setPreco(0.85);
     }
     else if (item == "Gelo 5Kg"){
       setPreco(10);
@@ -104,23 +106,32 @@ function showMoney(value: number| string){
     }
   }
 
-  /*async function sendToPrinter(){
-    const url = "http://localhost:5550/print";
+  async function sendToPrinter(){
+    if (canPrint){
+      setCanPrint (false);
+      const url = "http://localhost:5569/print";
+      reset();
+      products.forEach((item) => {
+        let name = item.name.slice(0, 20);
 
-    const sale = {
-      "productList" : products,
-      "total": total
-    };
+        item.name = name;
 
-    const result = await axios.post(url, sale);
+      })
 
-    if (result.status == 200){
-      setErros('Nota Fiscal Gerada com Sucesso!');
-    }else {
-      setErros('Erro!' + result.data.text);
+      const sale = {
+        "productList" : products,
+        "total": total
+      };
+
+      axios.post(url, sale);
+
+      setTimeout(() => {
+          setCanPrint(true);
+      }, 2000);
+
     }
-  }*/
-
+    
+  }
 
   async function finishSale(){
     const url = "http://localhost:5000/sales";
@@ -138,10 +149,12 @@ function showMoney(value: number| string){
     if (result.status == 200){
       reset();
       setErros('Venda Finalizada com Sucesso!');
+      
 
       setTimeout(() => {
         reset();
         setProducts([]);
+        setCanPrint(false);
       }, 2500);
     }else {
       setErros('Erro!' + result.data.text);
@@ -152,6 +165,12 @@ function showMoney(value: number| string){
     return products.length == 0; 
   }
 
+  function disablePrintButton(){
+
+    if (products.length == 0 ) return true;
+
+    return !canPrint;
+  }
 
   
   async function searchDB (codBarras: String){
@@ -172,7 +191,9 @@ function showMoney(value: number| string){
         const result = await axios.get("http://localhost:5000/products?codBarras=" + codBarras);
         if (result.status == 200){
           const productDb = result.data;
-  
+          
+          console.log(productDb); 
+
           if(Number(qtd) >= 1) productDb.qtd = qtd;
           else productDb.qtd = 1;
 
@@ -190,7 +211,7 @@ function showMoney(value: number| string){
 
 
   function getTotal(){
-    return products.reduce((sum, product) => sum + (parseFloat(product.price.replace(",", ".")) * Number(product.qtd)), 0);
+    return products.reduce((sum, product) => sum + (parseFloat(String(product.price).replace(",", ".")) * Number(product.qtd)), 0);
   }
 
   function adicionarBtOnclick(){
@@ -217,6 +238,8 @@ function showMoney(value: number| string){
         existentProduct.qtd = String(Number(existentProduct.qtd) + Number(qtd));
       reset()
       setTotal(getTotal());
+
+      setCanPrint(true);
       
     }else {
       setErros("Drop vazio ou preco vazio ou qtd vazio"!!!)
@@ -224,8 +247,7 @@ function showMoney(value: number| string){
    
   }
 
-  /// arrumar 8
-  function cBarrasOnChange(){
+  function cBarrasOnKeyUp(){
 
     if (String(qtd).length == 0) 
       setQtd(1)
@@ -233,10 +255,19 @@ function showMoney(value: number| string){
       setLastCBarras(String(cBarras));
 
       searchDB(String(cBarras));
+      setCanPrint(true);
     
     }else {
       setCBarras(String(cBarras).slice(0, 13));
     }
+  }
+
+  function cBarrasOnChange(val: string){
+
+    if (/^\d*$/.test(val)) {
+      setCBarras(val);
+    } 
+    
   }
 
   function valorPagoOnChange(){
@@ -271,8 +302,8 @@ return <div>
         value={cBarras}
         ref={inputRef}
         label={"Codigo de Barras"}
-        onChange={(event) =>setCBarras(event.currentTarget.value)}
-        onKeyUp={() => cBarrasOnChange()}
+        onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
+        onKeyUp={() => cBarrasOnKeyUp()}
         pe={'md'} pb={'sm'} ps={'md'} 
       />
 
@@ -303,7 +334,7 @@ return <div>
               rightSectionPointerEvents="none"
               onClick={() => combobox.toggleDropdown()}>
 
-              {dpBoxValue || <Input.Placeholder>Item</Input.Placeholder>}
+              {dpBoxValue }
             </InputBase>
           </Combobox.Target>
           
@@ -325,18 +356,10 @@ return <div>
         <Button disabled={disableButton()} onClick={adicionarBtOnclick}> Adicionar</Button> 
       </Flex>
 
-      <Grid>
-        <Grid.Col span={10} ta={"end"}> 
-          {/**<Button ml={"18%"} disabled={disableFinishButton()} type='submit' onClick={sendToPrinter}>Imprimir Nota</Button>**/}
-          </Grid.Col>
-
-        <Grid.Col span={10} ta={"center"}> 
-          <Button ml={"18%"} disabled={disableFinishButton()} type='submit' onClick={finishSale}>Finalizar</Button>
-        </Grid.Col>
-        <Grid.Col span={2}> 
-          <TextInput
+      <Center>
+      <TextInput
               label="Valor Pago:"
-              labelProps={{"size": "25px"}} // fix it 
+              labelProps={{"size": "25px"}}
               value={valorPago}
               prefix="R$ "
               onChange={(event) =>setValorPago(event.currentTarget.value)}
@@ -344,7 +367,19 @@ return <div>
               pe={'md'} pb={'sm'} ps={'md'} 
               placeholder="Valor Pago"
             />
+      </Center>
+
+      <Grid>
+
+        
+        <Grid.Col span={6} ta= {"center"}> </Grid.Col>
+
+        <Grid.Col span={4} ms={"10%"}  ta={"end"}> 
+          <Button ml={"18%"} disabled={disableFinishButton()} type='submit' onClick={finishSale}>Finalizar</Button>
+          <Button ml={"18%"} disabled={disablePrintButton()} type='submit' onClick={sendToPrinter}>Imprimir Nota</Button>
         </Grid.Col>
+        
+
       </Grid>    
 
       <Grid>

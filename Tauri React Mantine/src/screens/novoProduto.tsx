@@ -77,13 +77,13 @@ function NovoProduto() {
 
   async function searchDB (codBarras: String){
     try {
-      const result = await axios.get("http://localhost:5000/products?codBarras=" + codBarras);
+      const result = await axios.get("http://localhost:5000/productExists?codBarras=" + codBarras);
 
       if (result.status == 200){
         const product = result.data;
         
         setTitle("Atualizar Produto");
-        setNomeProduto(product.name);
+        setNomeProduto(product.name.slice(0,20));
         setNomeVendaProduto(product.salesName);
         setPrecoProduto(product.price);
         setQtdProduto(product.qtd);
@@ -101,6 +101,11 @@ function NovoProduto() {
     } 
   }
 
+  function nomeProdutoOnKeyUp(){
+    if (String(nomeProduto).length > 20){
+      setNomeProduto(nomeProduto.slice(0,20));
+    }
+  }
 
   function cBarrasOnKeyUp(){
     if (String(cBarras).length == 13 || String(cBarras).length == 8 && String(cBarras) != String(lastCBarras)){
@@ -220,15 +225,9 @@ function NovoProduto() {
           value={nomeProduto} 
           onChange={(event)=>setNomeProduto(event.currentTarget.value)} 
           pe={'md'} pb={'sm'} ps={'md'} 
+          onKeyUp={nomeProdutoOnKeyUp}
           placeholder='Nome do Produto'
           />
-
-        <TextInput 
-          value={nomeVendaProduto} 
-          disabled={true}
-          onChange={(event)=>setNomeVendaProduto(event.currentTarget.value)}           
-          pe={'md'} pb={'sm'} ps={'md'} 
-          placeholder='Nome de Venda do Produto'/>
 
         <NumberInput
           value={precoProduto}

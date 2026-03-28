@@ -32,6 +32,7 @@ function Historico() {
 
     const [date, setDate] = useState<DateValue>(new Date());
     const [data, setData] = useState<Venda[] |[]>([]);
+    const [canPrint, setCanPrint] = useState<boolean>(true);
     const [produtos, setProdutos] = useState<Product[]>([]);
     const [visibility, setVisibility] = useState(() =>
         produtos.map(() => false) // Create a `false` state for each text item
@@ -41,8 +42,44 @@ function Historico() {
         setVisibility((prev) =>
           prev.map((isVisible, i) => (i === index ? !isVisible : isVisible))
         );
+
       };
-    
+
+       async function sendToPrinter(index: number){
+          if (canPrint){
+            setCanPrint (false);
+            const url = "http://localhost:5569/print";
+            let products: Product[] = [];
+            
+            data[index].products.forEach((item) => {
+              
+              let name = item.name.slice(0, 20);
+              products.push({  
+                    id: item.id,
+                    barcode: item.barcode,
+                    name: name,
+                    salesName: item.salesName,
+                    qtd: item.qtd,
+                    price: item.price
+                })  
+      
+            })
+      
+            const sale = {
+              "productList" : products,
+              "total": String(Number(data[index].total).toFixed(2)).replace(",", "."),
+            };
+      
+            axios.post(url, sale);
+      
+            setTimeout(() => {
+                setCanPrint(true);
+            }, 2000);
+      
+          }
+          
+        }
+
     async function consultarHistorico() {
 
         setData([]);
@@ -80,6 +117,11 @@ function Historico() {
         })
         
         return venda;
+    }
+    function disablePrintButton(index:number){
+        if (!visibility[index]) return true;     
+
+        return !canPrint;
     }
 
     function convertProducts(prod: string){
@@ -130,6 +172,7 @@ function Historico() {
                             </Grid.Col>
                             <Grid.Col mt={"2%"} span={4}>
                                 <Button onClick={() => toggleVisibility(index)}>Mostrar Produtos</Button>
+                                <Button ml={"10%"} type='submit' disabled={disablePrintButton(index)} onClick={()=> sendToPrinter(index)}>Imprimir Nota</Button>
                             </Grid.Col>
                         </Grid>
 
