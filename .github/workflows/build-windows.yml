@@ -24,6 +24,7 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: Install frontend dependencies
+        working-directory: Tauri-React-Mantine
         run: npm install
 
       - name: Build Tauri app
@@ -31,6 +32,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          projectPath: Tauri-React-Mantine
           tagName: v__VERSION__ 
           releaseName: 'App v__VERSION__'
           releaseBody: 'Automated Windows build.'
