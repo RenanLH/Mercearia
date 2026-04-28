@@ -8,24 +8,19 @@ const Schema = new mongoose.Schema({
     },
     name: {
         type: String,
-        required: false,
+        required: true,
     },
-    salesName: {
-        type: String,
-        required: false,
-    },
-
     qtd: {
         type: String, 
-        required: false,        
+        required: true,        
     },
     price: {
         type: String,
-        required: false,
+        required: true,
     },
     lastUpdated: {
         type: Date,
-        required: false,
+        required: true,
     },
 })
 

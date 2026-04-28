@@ -7,6 +7,7 @@ import Home from "./screens/home";
 import NovaVenda from "./screens/novaVenda";
 import novoProduto from './screens/novoProduto';
 import Historico from './screens/historico';
+import Vendas from './screens/vendas';
 
 function App() {
   const views = [{
@@ -26,6 +27,10 @@ function App() {
     path: 'historico',
     name: 'historico',
     component: Historico
+  },{
+    path: 'vendas',
+    name: 'vendas',
+    component: Vendas
   }];
   
   return (
