@@ -180,15 +180,15 @@ const History: React.FC = () => {
           </ActionIcon>
         </NavLink>
       </div>
-      <Container size="lg" py="xl">
+      <Container h={"100%"} size="xl" py="md">
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
-            <Box>
+            <Box ml={"10%"}>
               <Title order={1} fw={900} lts="-0.5px">
                 Histórico de Vendas
               </Title>
               <Group gap="xs" mt={6}>
-                <Text fw={700}>
+                <Text fz={{ base: "13px", sm: "18px" }} fw={700}>
                   {showTotal ? formatMoney(dailyTotal) : "R$ ••••••"}
                 </Text>
                 <ActionIcon
@@ -199,7 +199,7 @@ const History: React.FC = () => {
                   {showTotal ? <IconEye size={18} /> : <IconEyeOff size={18} />}
                 </ActionIcon>
               </Group>
-              <Text size="sm" c="dimmed" mt={4}>
+              <Text size="md" c="" mt={4}>
                 {showTotal ? `${dailySales} vendas` : "•••• vendas"}
               </Text>
             </Box>
@@ -243,15 +243,15 @@ const History: React.FC = () => {
                     height: "100%",
                   }}
                 >
-                  <Stack gap="sm" h="100%" justify="space-between">
+                  <Stack gap="xs" h="100%" justify="space-between">
                     <Box>
-                      <Text size="xs" fw={600} c="dimmed">
+                      <Text size="md" fw={600} c="gray">
                         {new Date(sale.date).toLocaleDateString("pt-BR", {
                           month: "short",
                           day: "numeric",
                         })}{" "}
                         às{" "}
-                        {new Date(sale.date).toLocaleTimeString([], {
+                        {new Date(sale.date).toLocaleTimeString("pt-BR", {
                           timeStyle: "short",
                         })}
                       </Text>
@@ -267,7 +267,7 @@ const History: React.FC = () => {
                       }}
                     >
                       {sale.products.slice(0, 2).map((product, idx) => (
-                        <Text key={idx} size="xs" fw={500} truncate>
+                        <Text key={idx} size="sm" fw={500} truncate>
                           {product.quantity}× {product.name}
                         </Text>
                       ))}
@@ -280,7 +280,7 @@ const History: React.FC = () => {
                     </Stack>
 
                     <Group justify="space-between" align="flex-end">
-                      <Text size="md" fw={800} c="blue">
+                      <Text size="lg" fw={800} c="blue">
                         {formatMoney(totalAmount)}
                       </Text>
                       <ActionIcon
@@ -306,6 +306,7 @@ const History: React.FC = () => {
                 onChange={handlePageChange}
                 color="blue"
                 radius="md"
+                mb={"xl"}
               />
             </Group>
           )}
@@ -370,18 +371,18 @@ const History: React.FC = () => {
                             {item.quantity}x
                           </Badge>
 
-                          <Text size="sm" fw={600}>
+                          <Text size="md" fw={600}>
                             {item.name.slice(0, 20)}
                           </Text>
                         </Group>
                       </Box>
 
                       <Stack gap={0} align="flex-end">
-                        <Text ff="monospace" fw={700}>
+                        <Text size="lg" ff="monospace" fw={700}>
                           {formatMoney(lineTotal)}
                         </Text>
                         {item.quantity > 1 && (
-                          <Text size="xs" c="dimmed">
+                          <Text size="sm" c="dimmed">
                             {formatMoney(item.price)} / un
                           </Text>
                         )}

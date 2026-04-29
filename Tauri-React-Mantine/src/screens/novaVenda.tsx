@@ -1,8 +1,9 @@
 import {
   Button, Center, Combobox, Flex,
-  Grid, InputBase, NumberInput, Text,
+  InputBase, NumberInput, Text,
   useCombobox, ActionIcon, rem, TextInput,
-  Box
+  Box,
+  Title
 } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { IconArrowLeft, IconTrash } from "@tabler/icons-react";
@@ -331,18 +332,21 @@ function NovaVenda() {
   }
 
   return (
-    <div>
-      <div className="header" style={{ height: "100%" }}>
+    <>
+      <div
+        style={{ position: "absolute", top: "1rem", left: "1rem", zIndex: 100 }}
+      >
         <NavLink to="/">
-          <ActionIcon
-            size={42}
-            variant="default"
-            aria-label="ActionIcon with size as a number"
-          >
+          <ActionIcon size={42} variant="default" aria-label="Voltar">
             <IconArrowLeft style={{ width: rem(24), height: rem(24) }} />
           </ActionIcon>
         </NavLink>
-        <h1>Nova Venda</h1>
+      </div>
+      <div style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flexShrink: 0 }}>
+        <Title order={1} fw={900} lts="-0.5px">
+          Nova Venda
+        </Title>
         <Text ta={"center"} c={"red"} size="15px" ff="monospace">
           {erros}
         </Text>
@@ -422,33 +426,27 @@ function NovaVenda() {
           </Button>
         </Flex>
 
-        <Center>
-          <NumberInput
-            label="Valor Pago:"
-            labelProps={{ size: "25px" }}
-            value={valorPago}
-            prefix="R$ "
-            decimalScale={2}
-            fixedDecimalScale={true}
-            hideControls={true}
-            allowedDecimalSeparators={[","]}
-            onChange={valorPagoOnChange}
-            onKeyUp={valorTrocoOnChange}
-            pe={"md"}
-            pb={"sm"}
-            ps={"md"}
-            placeholder="Valor Pago"
-          />
-        </Center>
-
-        <Grid>
-          <Grid.Col span={6} ta={"center"}>
-            {" "}
-          </Grid.Col>
-
-          <Grid.Col span={4} ms={"10%"} ta={"end"}>
+        <Flex align="flex-end" gap="sm" wrap="wrap">
+          <Box style={{ flex: 1 }} />
+          <Center style={{ flex: 1 }}>
+            <NumberInput
+              label="Valor Pago:"
+              labelProps={{ size: "25px" }}
+              value={valorPago}
+              prefix="R$ "
+              decimalScale={2}
+              fixedDecimalScale={true}
+              hideControls={true}
+              allowedDecimalSeparators={[","]}
+              onChange={valorPagoOnChange}
+              onKeyUp={valorTrocoOnChange}
+              pb={"md"}
+              ps={"lg"}
+              placeholder="Valor Pago"
+            />
+          </Center>
+          <Flex style={{ flex: 1 }} mr={"xl"} justify="flex-end" gap="sm" wrap="wrap">
             <Button
-              ml={"18%"}
               disabled={disableFinishButton()}
               type="submit"
               onClick={finishSale}
@@ -456,15 +454,14 @@ function NovaVenda() {
               Finalizar
             </Button>
             <Button
-              ml={"18%"}
               disabled={disablePrintButton()}
               type="submit"
               onClick={sendToPrinter}
             >
               Imprimir Nota
             </Button>
-          </Grid.Col>
-        </Grid>
+          </Flex>
+        </Flex>
 
         <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0", borderBottom: "1px solid #444" }}>
           <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
@@ -500,66 +497,67 @@ function NovaVenda() {
           <Box style={{ flex: "0 0 30%", minWidth: 0 }} />
 
           <Box style={{ flex: "0 0 14%", textAlign: "center" }}>
-            <Text fz={{ base: "13px", sm: "18px" }} c={"#FFFF"} fw={600}>
+            <Text fz={{ base: "13px", sm: "20px" }} c={"#FFFF"} fw={600}>
               {formatMoney(total)}
             </Text>
           </Box>
 
           <Box style={{ flex: "0 0 15%", textAlign: "center", padding: "0.25rem" }}>
-            <Text fz={{ base: "13px", sm: "18px" }} c={"#FFFF"} fw={600}>
+            <Text fz={{ base: "13px", sm: "20px" }} c={"#FFFF"} fw={600}>
               {formatMoney(valorTroco)}
             </Text>
           </Box>
 
           <Box style={{ flex: "0 0 10%" }} />
         </Flex>
-      </div>
-
-      <div className="main" style={{ height: "100%", overflowY: "auto" }}>
-        <div
-          id="productsDiv"
-          style={{
-            minHeight: "40vh",
-            maxHeight: "100%",
-            minWidth: "90%",
-            maxWidth: "99%",
-          }}
-        >
-          {products.map((product, index) => (
-            <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0" }}>
-              <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
-                <Text c="#ffff" fz={{ base: "13px", sm: "18px" }}>
-                  {product.qtd}
-                </Text>
-              </Box>
-              <Box style={{ flex: "0 0 35%", minWidth: 0 }}>
-                <Text c="#ffff" fz={{ base: "13px", sm: "18px" }} truncate>
-                  {product.name}
-                </Text>
-              </Box>
-              <Box style={{ flex: "0 0 15%", textAlign: "left" }}>
-                <Text c="#ffff" fz={{ base: "13px", sm: "18px" }}>
-                  {formatMoney(product.price)}
-                </Text>
-              </Box>
-              <Box style={{ flex: "0 0 15%", textAlign: "left" }}>
-                <Text c="#ffff" fz={{ base: "13px", sm: "18px" }}>
-                  {formatMoney(getProductTotal(product.price, product.qtd))}
-                </Text>
-              </Box>
-              <ActionIcon
-                size="lg"
-                variant="subtle"
-                color="red"
-                onClick={() => removeItem(index)}
-              >
-                <IconTrash size={16} />
-              </ActionIcon>
-            </Flex>
-          ))}
+        </div>
+      
+        <div className="main" style={{ flex: 1, overflow: "hidden" }}>
+          <div
+            id="productsDiv"
+            style={{
+              height: "100%",
+              overflowY: "auto",
+              minWidth: "90%",
+              maxWidth: "99%",
+            }}
+          >
+            {products.map((product, index) => (
+              <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0" }}>
+                <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
+                  <Text c="#ffff" fz={{ base: "13px", sm: "20px" }}>
+                    {product.qtd}
+                  </Text>
+                </Box>
+                <Box style={{ flex: "0 0 35%", minWidth: 0 }}>
+                  <Text c="#ffff" fz={{ base: "15px", sm: "20px" }} truncate>
+                    {product.name}
+                  </Text>
+                </Box>
+                <Box style={{ flex: "0 0 15%", textAlign: "left" }}>
+                  <Text c="#ffff" fz={{ base: "13px", sm: "20px" }}>
+                    {formatMoney(product.price)}
+                  </Text>
+                </Box>
+                <Box style={{ flex: "0 0 15%", textAlign: "left" }}>
+                  <Text c="#ffff" fz={{ base: "13px", sm: "20px" }}>
+                    {formatMoney(getProductTotal(product.price, product.qtd))}
+                  </Text>
+                </Box>
+                <ActionIcon
+                  size="lg"
+                  variant="subtle"
+                  color="red"
+                  onClick={() => removeItem(index)}
+                >
+                  <IconTrash size={16} />
+                </ActionIcon>
+              </Flex>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

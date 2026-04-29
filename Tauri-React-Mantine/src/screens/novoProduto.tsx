@@ -1,12 +1,8 @@
 import {
-  ActionIcon,
-  Button,
-  Grid,
-  NumberInput,
-  rem,
-  TextInput,
-  Text,
-  Flex,
+  ActionIcon, Button, Grid,
+  NumberInput, rem, TextInput,
+  Text, Flex, Title,
+  Container,
 } from "@mantine/core";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
@@ -158,105 +154,108 @@ function NovoProduto() {
   }
 
   return (
-    <div>
-      <NavLink to="/">
-        <ActionIcon
-          size={42}
-          variant="default"
-          aria-label="ActionIcon with size as a number"
-        >
-          <IconArrowLeft style={{ width: rem(24), height: rem(24) }} />
-        </ActionIcon>
-      </NavLink>
-
-      <h1 style={{ color: "white" }}>{title}</h1>
-
-      <Grid>
-        <Grid.Col span={9}>
-          <TextInput
-            value={cBarras}
-            onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
-            onKeyUp={cBarrasOnKeyUp}
-            ref={inputRef}
-            pe={"md"}
-            pb={"sm"}
-            ps={"md"}
-            placeholder="Código de Barras"
-          />
-        </Grid.Col>
-
-        <Grid.Col span={1}>
+    <>
+      <div style={{ position: "absolute", top: "1rem", left: "1rem", zIndex: 100 }}>
+        <NavLink to="/">
+          <ActionIcon size={42} variant="default" aria-label="Voltar">
+            <IconArrowLeft style={{ width: rem(24), height: rem(24) }} />
+          </ActionIcon>
+        </NavLink>
+      </div>
+      
+      <Container size="xl" py="xl" h={"100dvh"}>
+        <Title order={1} fw={800} lts="-0.5px" mb="3.5rem">
+          {title}
+        </Title>
+        <Grid>
+          <Grid.Col span={9}>
+            <TextInput
+              value={cBarras}
+              onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
+              onKeyUp={cBarrasOnKeyUp}
+              ref={inputRef}
+              pe={"md"}
+              pb={"sm"}
+              ps={"md"}
+              placeholder="Código de Barras"
+            />
+          </Grid.Col>
+  
+          <Grid.Col span={1}>
+            <Button
+              disabled={disableSearchButton()}
+              type="submit"
+              onClick={() => searchDB(cBarras)}
+            >
+              Buscar
+            </Button>
+          </Grid.Col>
+        </Grid>
+  
+        <TextInput
+          value={nomeProduto}
+          onChange={(event) => setNomeProduto(event.currentTarget.value)}
+          pe={"md"}
+          pb={"sm"}
+          ps={"md"}
+          onKeyUp={nomeProdutoOnKeyUp}
+          placeholder="Nome do Produto"
+        />
+  
+        <NumberInput
+          value={precoProduto}
+          onChange={setPrecoProduto}
+          pe={"md"}
+          pb={"sm"}
+          ps={"md"}
+          placeholder="Preço do Produto"
+          allowNegative={false}
+          decimalScale={2}
+          allowedDecimalSeparators={[","]}
+          fixedDecimalScale={true}
+          hideControls={true}
+          prefix="R$ "
+        />
+  
+        <NumberInput
+          value={qtdProduto}
+          onChange={setQtdProduto}
+          pe={"md"}
+          pb={"sm"}
+          ps={"md"}
+          placeholder="Quantidade"
+          allowDecimal={false}
+          allowNegative={false}
+          hideControls={true}
+        />
+  
+        <Text pe={"md"} pb={"sm"} ps={"md"}>
+          {erros}
+        </Text>
+  
+        <Flex gap={"md"} justify={"center"} p={"xl"}>
           <Button
-            disabled={disableSearchButton()}
+            disabled={!disableResetButton()}
             type="submit"
-            onClick={() => searchDB(cBarras)}
+            onClick={resetProduct}
           >
-            Buscar
+            Limpar
           </Button>
-        </Grid.Col>
-      </Grid>
+          <Button disabled={!found} type="submit" onClick={editProduct}>
+            Atualizar
+          </Button>
+          <Button
+            disabled={!disableAddButton()}
+            type="submit"
+            onClick={addProduct}
+          >
+            Cadastrar
+          </Button>
+        </Flex>
+        
+      </Container>
 
-      <TextInput
-        value={nomeProduto}
-        onChange={(event) => setNomeProduto(event.currentTarget.value)}
-        pe={"md"}
-        pb={"sm"}
-        ps={"md"}
-        onKeyUp={nomeProdutoOnKeyUp}
-        placeholder="Nome do Produto"
-      />
-
-      <NumberInput
-        value={precoProduto}
-        onChange={setPrecoProduto}
-        pe={"md"}
-        pb={"sm"}
-        ps={"md"}
-        placeholder="Preço do Produto"
-        allowNegative={false}
-        decimalScale={2}
-        allowedDecimalSeparators={[","]}
-        fixedDecimalScale={true}
-        hideControls={true}
-        prefix="R$ "
-      />
-
-      <NumberInput
-        value={qtdProduto}
-        onChange={setQtdProduto}
-        pe={"md"}
-        pb={"sm"}
-        ps={"md"}
-        placeholder="Quantidade"
-        allowDecimal={false}
-        allowNegative={false}
-        hideControls={true}
-      />
-
-      <Text pe={"md"} pb={"sm"} ps={"md"}>
-        {erros}
-      </Text>
-
-      <Flex gap={"md"} justify={"center"} p={"xl"}>
-        <Button
-          disabled={!disableResetButton()}
-          type="submit"
-          onClick={resetProduct}
-        >
-          Limpar
-        </Button>
-        <Button disabled={!found} type="submit" onClick={editProduct}>
-          Atualizar
-        </Button>
-        <Button
-          disabled={!disableAddButton()}
-          type="submit"
-          onClick={addProduct}
-        >
-          Cadastrar
-        </Button>
-      </Flex>
-    </div>
+    </>
   );
 }
 
