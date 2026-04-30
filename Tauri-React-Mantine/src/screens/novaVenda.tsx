@@ -463,7 +463,7 @@ function NovaVenda() {
           </Flex>
         </Flex>
 
-        <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0", borderBottom: "1px solid #444" }}>
+        <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0" }}>
           <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
             <Text c="#FFFF" fz={{ base: "13px", sm: "20px" }} fw={600}>
               Quantidade
@@ -491,7 +491,7 @@ function NovaVenda() {
           </Box>
         </Flex>
 
-        <Flex gap="sm" align="center" wrap="nowrap" mb="1%" style={{ width: "100%", padding: "0.5rem 0" }}>
+        <Flex gap="sm" align="center" wrap="nowrap" mb="1%" style={{ width: "100%", padding: "0.5rem 0", borderBottom: "1px solid #444"}}>
           <Box style={{ flex: "0 0 15%", textAlign: "center" }} />
           <Box style={{ flex: "0 0 15%", minWidth: 0 }} />
           <Box style={{ flex: "0 0 30%", minWidth: 0 }} />
