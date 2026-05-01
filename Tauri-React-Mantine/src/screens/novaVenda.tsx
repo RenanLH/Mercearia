@@ -63,8 +63,6 @@ function NovaVenda() {
   function removeItem(removeAtIndex: number) {
     inputRef?.current?.focus();
     setProducts((prev) => prev.filter((_, index) => index != removeAtIndex));
-    setValorPago("");
-    setValorTroco("");
   }
 
   function reset() {
@@ -108,11 +106,11 @@ function NovaVenda() {
     } else if (item == "Gelo 5Kg") {
       setPreco(10);
     } else if (item == "Carvão 4Kg") {
-      setPreco(20);
+      setPreco(22);
     } else if (item == "Carvão 9Kg") {
-      setPreco(46);
+      setPreco(48);
     } else if (item == "Lenha") {
-      setPreco(16);
+      setPreco(18);
     } else if (item == "Sabão em Barra") {
       setPreco(3.5);
     } else {
@@ -326,6 +324,17 @@ function NovaVenda() {
       setValorTroco("");
     }
   }
+
+  useEffect(() => {
+    const pago = Number(String(valorPago).replace(",", "."));
+    const valorTotal = Number(total);
+
+    if (pago > 0 && products.length > 0) {
+      setValorTroco(pago - valorTotal);
+    } else {
+      setValorTroco("");
+    }
+  }, [products, total, valorPago]);
 
   function disableButton() {
     return dpBoxValue == null || preco == "";
