@@ -1,9 +1,18 @@
 import {
-  Button, Center, Combobox, Flex,
-  InputBase, NumberInput, Text,
-  useCombobox, ActionIcon, rem, TextInput,
+  Button,
+  Center,
+  Combobox,
+  Flex,
+  InputBase,
+  NumberInput,
+  Text,
+  useCombobox,
+  ActionIcon,
+  rem,
+  TextInput,
   Box,
-  Title
+  Title,
+  Container,
 } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { IconArrowLeft, IconTrash } from "@tabler/icons-react";
@@ -19,7 +28,6 @@ type product = {
 };
 
 function NovaVenda() {
-
   const [dpBoxValue, setDpBoxValue] = useState<string>("Diversos");
   const [erros, setErros] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +56,8 @@ function NovaVenda() {
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
+  const saleGridTemplateColumns =
+    "minmax(72px, 1.1fr) minmax(120px, 2.2fr) minmax(64px, 1fr) minmax(72px, 1.1fr) minmax(72px, 1.1fr) minmax(104px, 1fr)";
 
   useEffect(() => {
     inputRef?.current?.focus();
@@ -58,7 +68,6 @@ function NovaVenda() {
   useEffect(() => {
     setTotal(getTotal);
   });
-
 
   function removeItem(removeAtIndex: number) {
     inputRef?.current?.focus();
@@ -269,13 +278,11 @@ function NovaVenda() {
       if (existentProduct == undefined || existentProduct.name == "Diversos")
         setProducts((prev) => [uncategorized, ...prev]);
       else
-        existentProduct.qtd = String(Number(existentProduct.qtd) + Number(qtd));
+        existentProduct.qtd = String(Number(existentProduct.qtd) + Number(q));
       reset();
       setTotal(getTotal());
 
       setCanPrint(true);
-    } else {
-      setErros("Drop vazio ou preco vazio ou qtd vazio"!!!);
     }
   }
 
@@ -313,12 +320,11 @@ function NovaVenda() {
     setValorPago(Number(val) < 100000 ? val : "");
   }
 
-
   function valorTrocoOnChange() {
     const pago = Number(String(valorPago).replace(",", "."));
     const valorTotal = Number(total);
     if (pago > 0 && products.length > 0) {
-      console.log(products.length)
+      console.log(products.length);
       setValorTroco(pago - valorTotal);
     } else {
       setValorTroco("");
@@ -351,217 +357,252 @@ function NovaVenda() {
           </ActionIcon>
         </NavLink>
       </div>
-      <div style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div
+        style={{
+          height: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         <div style={{ flexShrink: 0 }}>
-        <Title order={1} fw={900} lts="-0.5px">
-          Nova Venda
-        </Title>
-        <Text ta={"center"} c={"red"} size="15px" ff="monospace">
-          {erros}
-        </Text>
+          <Container size="xl" pt="xl">
+            <Title order={1} fw={800} lts="-0.5px">
+              Nova Venda
+            </Title>
+          </Container>
+          <Text ta={"center"} c={"red"} size="15px" ff="monospace">
+            {erros}
+          </Text>
 
-        <Center>
-          <TextInput
-            mt={"10px"}
-            value={cBarras}
-            ref={inputRef}
-            label={"Codigo de Barras"}
-            onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
-            onKeyUp={() => cBarrasOnKeyUp()}
-            pe={"md"}
-            pb={"sm"}
-            ps={"md"}
-          />
-          {
-            //fix qtd > 200
-          }
-          <NumberInput
-            value={qtd}
-            onChange={(value) => qtdOnChange(value)}
-            label={"Quantidade"}
-            allowDecimal={false}
-            allowNegative={false}
-            hideControls={true}
-          />
-        </Center>
-
-        <Flex
-          pb={"2%"}
-          gap={"md"}
-          justify={"center"}
-          direction={{ base: "column", sm: "row" }}
-        >
-          <Combobox
-            width={"10%"}
-            store={combobox}
-            onOptionSubmit={(val) => {
-              setDpBoxValue(val);
-              setPrecoDiversos(val);
-              combobox.closeDropdown();
-            }}
-          >
-            <Combobox.Target>
-              <InputBase
-                component="button"
-                type="button"
-                pointer
-                rightSection={<Combobox.Chevron />}
-                rightSectionPointerEvents="none"
-                onClick={() => combobox.toggleDropdown()}
-              >
-                {dpBoxValue}
-              </InputBase>
-            </Combobox.Target>
-
-            <Combobox.Dropdown>
-              <Combobox.Options>{options}</Combobox.Options>
-            </Combobox.Dropdown>
-          </Combobox>
-
-          <NumberInput
-            value={preco}
-            onChange={precoOnChange}
-            placeholder="Preço do Produto"
-            allowNegative={false}
-            allowedDecimalSeparators={[","]}
-            decimalScale={2}
-            fixedDecimalScale={true}
-            hideControls={true}
-            prefix="R$ "
-          />
-          <Button disabled={disableButton()} onClick={adicionarBtOnclick}>
-            {" "}
-            Adicionar
-          </Button>
-        </Flex>
-
-        <Flex align="flex-end" gap="sm" wrap="wrap">
-          <Box style={{ flex: 1 }} />
-          <Center style={{ flex: 1 }}>
+          <Center>
+            <TextInput
+              mt={"10px"}
+              value={cBarras}
+              ref={inputRef}
+              label={"Codigo de Barras"}
+              onChange={(event) => cBarrasOnChange(event.currentTarget.value)}
+              onKeyUp={() => cBarrasOnKeyUp()}
+              pe={"md"}
+              pb={"sm"}
+              ps={"md"}
+            />
+            {
+              //fix qtd > 200
+            }
             <NumberInput
-              label="Valor Pago:"
-              labelProps={{ size: "25px" }}
-              value={valorPago}
-              prefix="R$ "
+              value={qtd}
+              onChange={(value) => qtdOnChange(value)}
+              label={"Quantidade"}
+              allowDecimal={false}
+              allowNegative={false}
+              hideControls={true}
+            />
+          </Center>
+
+          <Flex
+            pb={"sm"}
+            gap={"md"}
+            justify={"center"}
+            direction={{ base: "column", sm: "row" }}
+          >
+            <Combobox
+              width={"10%"}
+              store={combobox}
+              onOptionSubmit={(val) => {
+                setDpBoxValue(val);
+                setPrecoDiversos(val);
+                combobox.closeDropdown();
+              }}
+            >
+              <Combobox.Target>
+                <InputBase
+                  component="button"
+                  type="button"
+                  pointer
+                  rightSection={<Combobox.Chevron />}
+                  rightSectionPointerEvents="none"
+                  onClick={() => combobox.toggleDropdown()}
+                >
+                  {dpBoxValue}
+                </InputBase>
+              </Combobox.Target>
+
+              <Combobox.Dropdown>
+                <Combobox.Options>{options}</Combobox.Options>
+              </Combobox.Dropdown>
+            </Combobox>
+
+            <NumberInput
+              value={preco}
+              onChange={precoOnChange}
+              placeholder="Preço do Produto"
+              allowNegative={false}
+              allowedDecimalSeparators={[","]}
               decimalScale={2}
               fixedDecimalScale={true}
               hideControls={true}
-              allowedDecimalSeparators={[","]}
-              onChange={valorPagoOnChange}
-              onKeyUp={valorTrocoOnChange}
-              pb={"md"}
-              ps={"lg"}
-              placeholder="Valor Pago"
+              prefix="R$ "
             />
-          </Center>
-          <Flex style={{ flex: 1 }} mr={"xl"} justify="flex-end" gap="sm" wrap="wrap">
-            <Button
-              disabled={disableFinishButton()}
-              type="submit"
-              onClick={finishSale}
-            >
-              Finalizar
-            </Button>
-            <Button
-              disabled={disablePrintButton()}
-              type="submit"
-              onClick={sendToPrinter}
-            >
-              Imprimir Nota
+            <Button disabled={disableButton()} onClick={adicionarBtOnclick}>
+              {" "}
+              Adicionar
             </Button>
           </Flex>
-        </Flex>
 
-        <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0" }}>
-          <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
-            <Text c="#FFFF" fz={{ base: "13px", sm: "20px" }} fw={600}>
-              Quantidade
-            </Text>
-          </Box>
-          <Box style={{ flex: "0 0 30%", minWidth: 0 }}>
-            <Text c="#FFFF" fz={{ base: "13px", sm: "20px" }} fw={600}>
-              Nome do Produto
-            </Text>
-          </Box>
-          <Box style={{ flex: "0 0 14%", textAlign: "center" }}>
-            <Text c="#FFFF" fz={{ base: "13px", sm: "20px" }} fw={600}>
-              Preço
-            </Text>
-          </Box>
-          <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
-            <Text c="#FFFF" fz={{ base: "13px", sm: "20px" }} fw={600}>
-              TOTAL
-            </Text>
-          </Box>
-          <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
-            <Text c="#FFFF" fz={{ base: "13px", sm: "20px" }} fw={600}>
-              TROCO
-            </Text>
-          </Box>
-        </Flex>
+          <Flex align="flex-end" wrap="wrap">
+            <Box style={{ flex: 1 }} />
+            <Center style={{ flex: 1 }}>
+              <NumberInput
+                label="Valor Pago:"
+                labelProps={{ size: "23px" }}
+                value={valorPago}
+                prefix="R$ "
+                decimalScale={2}
+                fixedDecimalScale={true}
+                hideControls={true}
+                allowedDecimalSeparators={[","]}
+                onChange={valorPagoOnChange}
+                onKeyUp={valorTrocoOnChange}
+                pb={"md"}
+                placeholder="Valor Pago"
+              />
+            </Center>
+            <Box style={{ flex: 1 }} />
+          </Flex>
 
-        <Flex gap="sm" align="center" wrap="nowrap" mb="1%" style={{ width: "100%", padding: "0.5rem 0", borderBottom: "1px solid #444"}}>
-          <Box style={{ flex: "0 0 15%", textAlign: "center" }} />
-          <Box style={{ flex: "0 0 15%", minWidth: 0 }} />
-          <Box style={{ flex: "0 0 30%", minWidth: 0 }} />
+          <Box
+            mb={"lg"}
+            style={{
+              width: "100%",
+              borderBottom: "1px solid #444",
+              display: "grid",
+              gridTemplateColumns: saleGridTemplateColumns,
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <Box style={{ textAlign: "center" }}>
+              <Text c="#FFFF" fz={{ base: "13px", sm: "23px" }} fw={600}>
+                Quantidade
+              </Text>
+            </Box>
+            <Box style={{ minWidth: 0 }}>
+              <Text c="#FFFF" fz={{ base: "13px", sm: "23px" }} fw={600}>
+                Nome do Produto
+              </Text>
+            </Box>
+            <Box style={{ textAlign: "center" }}>
+              <Text c="#FFFF" fz={{ base: "13px", sm: "23px" }} fw={600}>
+                Preço
+              </Text>
+            </Box>
+            <Box style={{ textAlign: "center" }}>
+              <Text c="#FFFF" fz={{ base: "13px", sm: "23px" }} fw={600}>
+                TOTAL
+              </Text>
+            </Box>
+            <Box style={{ textAlign: "center" }}>
+              <Text c="#FFFF" fz={{ base: "13px", sm: "23px" }} fw={600}>
+                TROCO
+              </Text>
+            </Box>
+            <Box pe={"sm"} pl={"sm"}>
+              <Button
+                fullWidth
+                disabled={disableFinishButton()}
+                type="submit"
+                onClick={finishSale}
+              >
+                Finalizar
+              </Button>
+            </Box>
+            <Box style={{ textAlign: "center" }} />
+            <Box style={{ minWidth: 0 }} />
+            <Box style={{ minWidth: 0 }} />
 
-          <Box style={{ flex: "0 0 14%", textAlign: "center" }}>
-            <Text fz={{ base: "13px", sm: "20px" }} c={"#FFFF"} fw={600}>
-              {formatMoney(total)}
-            </Text>
+            <Box style={{ textAlign: "center" }}>
+              <Text fz={{ base: "13px", sm: "23px" }} c={"#FFFF"} fw={600}>
+                {formatMoney(total)}
+              </Text>
+            </Box>
+
+            <Box
+              style={{
+                textAlign: "center",
+                padding: "0.25rem",
+              }}
+            >
+              <Text fz={{ base: "13px", sm: "23px" }} c={"#FFFF"} fw={600}>
+                {formatMoney(valorTroco)}
+              </Text>
+            </Box>
+            <Box pe={"sm"} pl={"sm"}>
+              <Button
+                fullWidth
+                disabled={disablePrintButton()}
+                type="submit"
+                onClick={sendToPrinter}
+              >
+                Imprimir Nota
+              </Button>
+            </Box>
           </Box>
-
-          <Box style={{ flex: "0 0 15%", textAlign: "center", padding: "0.25rem" }}>
-            <Text fz={{ base: "13px", sm: "20px" }} c={"#FFFF"} fw={600}>
-              {formatMoney(valorTroco)}
-            </Text>
-          </Box>
-
-          <Box style={{ flex: "0 0 10%" }} />
-        </Flex>
         </div>
-      
+
         <div className="main" style={{ flex: 1, overflow: "hidden" }}>
           <div
             id="productsDiv"
             style={{
               height: "100%",
               overflowY: "auto",
-              minWidth: "90%",
-              maxWidth: "99%",
+              width: "100%",
             }}
           >
             {products.map((product, index) => (
-              <Flex gap="sm" align="center" wrap="nowrap" style={{ width: "100%", padding: "0.5rem 0" }}>
-                <Box style={{ flex: "0 0 15%", textAlign: "center" }}>
+              <Box
+                key={index}
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0",
+                  display: "grid",
+                  gridTemplateColumns: saleGridTemplateColumns,
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <Box style={{ textAlign: "center" }}>
                   <Text c="#ffff" fz={{ base: "13px", sm: "20px" }}>
                     {product.qtd}
                   </Text>
                 </Box>
-                <Box style={{ flex: "0 0 35%", minWidth: 0 }}>
+                <Box style={{ minWidth: 0 }}>
                   <Text c="#ffff" fz={{ base: "15px", sm: "20px" }} truncate>
                     {product.name}
                   </Text>
                 </Box>
-                <Box style={{ flex: "0 0 15%", textAlign: "left" }}>
+                <Box style={{ textAlign: "center" }}>
                   <Text c="#ffff" fz={{ base: "13px", sm: "20px" }}>
                     {formatMoney(product.price)}
                   </Text>
                 </Box>
-                <Box style={{ flex: "0 0 15%", textAlign: "left" }}>
+                <Box style={{ textAlign: "center" }}>
                   <Text c="#ffff" fz={{ base: "13px", sm: "20px" }}>
                     {formatMoney(getProductTotal(product.price, product.qtd))}
                   </Text>
                 </Box>
-                <ActionIcon
-                  size="lg"
-                  variant="subtle"
-                  color="red"
-                  onClick={() => removeItem(index)}
-                >
-                  <IconTrash size={16} />
-                </ActionIcon>
-              </Flex>
+                <Box />
+                <Box style={{ textAlign: "center" }}>
+                  <ActionIcon
+                    size="lg"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => removeItem(index)}
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Box>
+              </Box>
             ))}
           </div>
         </div>
