@@ -1,0 +1,524 @@
+import RegisteredSale from "../Model/RegisteredSale.js";
+import RegisteredProduct from "../Model/RegisteredProduct.js";
+import Sale from "../Model/Sale.js";
+
+async function createRegisteredSale(req, res) {
+  try {
+    const nfcePayload = req.body;
+
+    const existingSale = await RegisteredSale.findOne({
+      originalSaleId: nfcePayload.originalSaleId,
+    }).lean();
+
+    if (existingSale) {
+      return res.status(409).json({
+        status: "error",
+        message: `This sale (ID: ${nfcePayload.originalSaleId}) has already been registered as sale #${existingSale.saleId}`,
+        saleId: existingSale.saleId,
+        registeredSaleId: existingSale._id,
+      });
+    }
+
+    const lastSale = await RegisteredSale.findOne()
+      .sort({ saleId: -1 })
+      .select("saleId")
+      .lean();
+
+    const nextSaleId = lastSale ? lastSale.saleId + 1 : 1;
+
+    const registeredSale = await RegisteredSale.create({
+      saleId: nextSaleId,
+      originalSaleId: nfcePayload.originalSaleId,
+      total: nfcePayload.total,
+      date: nfcePayload.date,
+      payment_method: nfcePayload.payment_method || "01",
+      products: nfcePayload.products,
+    });
+
+    // Update stock for each product in the sale, change later to include products without barcode
+    for (const product of nfcePayload.products) {
+      if (product.barcode) {
+        await RegisteredProduct.updateOne(
+          { barcode: product.barcode },
+          {
+            $inc: { stock: -parseFloat(String(product.qtd).replace(",", ".")) },
+          },
+        );
+      }
+    }
+
+    // Return both saleId and _id for rollback support
+    res.status(200).json({
+      status: "success",
+      saleId: registeredSale.saleId,
+      registeredSaleId: registeredSale._id,
+    });
+  } catch (error) {
+    console.log(error);
+    // Handle unique constraint errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(409).json({
+        status: "error",
+        message: `Duplicate entry: ${field} already exists`,
+      });
+    }
+    res
+      .status(500)
+      .json(
+        "Error: " +
+          (error.errorResponse?.errmsg ||
+            error.message ||
+            "An error occurred while creating the registered sale"),
+      );
+  }
+}
+
+
+async function updateRegisteredSaleNfceCode(req, res) {
+  try {
+    const saleId = Number(req.params.saleId);
+    const { nfcecode } = req.body;
+
+    if (!saleId) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Sale ID is required" });
+    }
+
+    if (!nfcecode) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "NFCE code is required" });
+    }
+
+    const registeredSale = await RegisteredSale.findOneAndUpdate(
+      { saleId },
+      { $set: { nfcecode } },
+      { returnDocument: 'after' },
+    ).lean();
+
+    if (!registeredSale) {
+      return res
+        .status(404)
+        .json({ status: "error", message: "Sale not found" });
+    }
+
+    res.status(200).json({
+      status: "success",
+      saleId: registeredSale.saleId,
+      nfcecode: registeredSale.nfcecode,
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json(
+        "Error: " +
+          (error.errorResponse?.errmsg ||
+            error.message ||
+            "An error occurred while updating the registered sale"),
+      );
+  }
+}
+
+async function getRegisteredSales(req, res) {
+  try {
+    const dateRequested = new Date(req.query.date);
+    const limit = Number(req.query.limit) || 12;
+    const skip = Number(req.query.skip) || 0;
+
+    const dayBefore = new Date(dateRequested);
+    dayBefore.setHours(0, 0, 0, 0);
+
+    const query = {
+      date: {
+        $lt: dateRequested,
+        $gte: dayBefore,
+      },
+    };
+
+    const [numberSales, totalValue, registeredTotalValue, response] =
+      await Promise.all([
+        Sale.countDocuments(query),
+        Sale.aggregate([
+          {
+            $match: {
+              date: {
+                $lt: dateRequested,
+                $gte: dayBefore,
+              },
+            },
+          },
+          {
+            $project: {
+              totalAsNumber: {
+                $toDouble: {
+                  $replaceAll: {
+                    input: "$total",
+                    find: ",",
+                    replacement: ".",
+                  },
+                },
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              dailyTotal: { $sum: "$totalAsNumber" },
+            },
+          },
+        ]),
+        RegisteredSale.aggregate([
+          {
+            $match: {
+              date: {
+                $lt: dateRequested,
+                $gte: dayBefore,
+              },
+            },
+          },
+          {
+            $project: {
+              totalAsNumber: {
+                $toDouble: {
+                  $replaceAll: {
+                    input: "$total",
+                    find: ",",
+                    replacement: ".",
+                  },
+                },
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              registeredDailyTotal: { $sum: "$totalAsNumber" },
+            },
+          },
+        ]),
+        Sale.find(query).sort({ date: 1 }).skip(skip).limit(limit).lean(),
+      ]);
+
+    const dailyTotal = totalValue.length ? totalValue[0].dailyTotal : 0;
+    const registeredDailyTotal = registeredTotalValue.length
+      ? registeredTotalValue[0].registeredDailyTotal
+      : 0;
+
+    let formated = await formatSalesForFrontend(response);
+
+    res.status(200).json({
+      sales: formated,
+      numberSales,
+      dailyTotal,
+      registeredDailyTotal,
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json(
+        "Error: " +
+          (error.errorResponse?.errmsg ||
+            error.message ||
+            "An error occurred while fetching registered sales"),
+      );
+  }
+}
+
+async function formatSalesForFrontend(rawSalesFromDb) {
+  const formattedSales = [];
+
+  try {
+    const normalizedSales = rawSalesFromDb.map((sale) => ({
+      sale,
+      products: sale.products.map((product) =>
+        typeof product === "string" ? JSON.parse(product) : product,
+      ),
+    }));
+
+    const barcodes = new Set();
+    const saleIds = normalizedSales.map(({ sale }) => String(sale._id));
+
+    for (const { products } of normalizedSales) {
+      for (const product of products) {
+        if (product?.barcode) {
+          if (product.barcode.substring(0, 1) === "0") {
+            const zeroAddedBarcode = "0".concat(product.barcode);
+            barcodes.add(zeroAddedBarcode);
+          }
+          barcodes.add(product.barcode);
+        }
+      }
+    }
+
+    const [registeredSales, inventoryItems] = await Promise.all([
+      RegisteredSale.find({
+        originalSaleId: { $in: saleIds },
+      })
+        .select("originalSaleId saleId total nfcecode products")
+        .lean(),
+
+      RegisteredProduct.find({
+        $or: [
+          { barcode: { $in: Array.from(barcodes) } },
+          { barcodeTrib: { $in: Array.from(barcodes) } },
+        ],
+      })
+        .select("sku barcode barcodeTrib name stock fiscal unit")
+        .lean(),
+    ]);
+
+    const registeredSalesByOriginalId = new Map();
+    for (const sale of registeredSales) {
+      if (!registeredSalesByOriginalId.has(sale.originalSaleId)) {
+        registeredSalesByOriginalId.set(sale.originalSaleId, sale);
+      }
+    }
+
+    const inventoryByBarcode = new Map();
+    for (const item of inventoryItems) {
+      if (item.barcode && !inventoryByBarcode.has(item.barcode)) {
+        if (item.barcode.substring(0, 1) === "0") {
+          const formatedBarcode = item.barcode.substring(1);
+          inventoryByBarcode.set(formatedBarcode, item);
+        }
+        inventoryByBarcode.set(item.barcode, item);
+      }
+      if (item.barcodeTrib && !inventoryByBarcode.has(item.barcodeTrib)) {
+        inventoryByBarcode.set(item.barcodeTrib, item);
+      }
+    }
+
+    /*const alternativesCache = new Map();
+    async function getSuggestedAlternatives(numericPrice) {
+      const cacheKey = numericPrice.toFixed(2);
+      if (!alternativesCache.has(cacheKey)) {
+        const minPrice = numericPrice * 0.85;
+        const maxPrice = numericPrice * 1.15;
+
+        const queryPromise = RegisteredProduct.aggregate([
+          {
+            $addFields: {
+              priceNumber: {
+                $toDouble: "$salePrice",
+              },
+            },
+          },
+          {
+            $match: {
+              priceNumber: {
+                $gte: minPrice,
+                $lte: maxPrice,
+              },
+              stock: {
+                $gt: 0,
+              },
+            },
+          },
+          {
+            $sort: {
+              priceNumber: -1,
+            },
+          },
+          {
+            $limit: 5,
+          },
+          {
+            $project: {
+              _id: 1,
+              sku: 1,
+              name: 1,
+              barcode: 1,
+              barcodeTrib: 1,
+              price: "$salePrice",
+              stock: 1,
+              fiscal: 1,
+              unit: 1,
+            },
+          },
+        ]);
+
+        alternativesCache.set(cacheKey, queryPromise);
+      }
+
+      return alternativesCache.get(cacheKey);
+    }*/
+
+    for (const { sale, products } of normalizedSales) {
+      const hydratedProducts = await Promise.all(
+        products.map(async (productObj) => {
+          const safePriceString = String(productObj.price).replace(",", ".");
+          const numericPrice = parseFloat(safePriceString);
+          const numericQtd = parseFloat(
+            String(productObj.qtd).replace(",", "."),
+          );
+          const dbInventoryItem = inventoryByBarcode.get(productObj.barcode);
+
+          let isRegistered = false;
+          let stockStatus = "red";
+          let stock = 0;
+          let alternatives = [];
+
+          if (dbInventoryItem) {
+            isRegistered = true;
+            stock = dbInventoryItem.stock || 0;
+            stockStatus = stock ? (stock > 10 ? "green" : "yellow") : "red";
+          } /*else {
+            const suggestedAlts = await getSuggestedAlternatives(numericPrice);
+            alternatives = suggestedAlts.map((alt) => ({
+              id: String(alt._id),
+              sku: alt.sku,
+              barcode: alt.barcode,
+              name: alt.name,
+              price: alt.price.toString(),
+              stock: alt.stock,
+              fiscal: alt.fiscal
+                ? {
+                    ncm: alt.fiscal?.ncm,
+                    cfop: alt.fiscal?.cfopSale,
+                    unit: alt.unit,
+                    cest: alt.fiscal?.cest,
+                    csosn: alt.fiscal?.csosn,
+                    origin: alt.fiscal?.origin,
+                  }
+                : null,
+            }));
+          }*/
+
+          return {
+            id: productObj.id || "unregistered",
+            sku: dbInventoryItem ? dbInventoryItem.sku : "unregistered",
+            barcode: productObj.barcode,
+            name: dbInventoryItem?.name || productObj.name,
+            price: numericPrice,
+            quantity: numericQtd,
+            isRegistered,
+            stockStatus,
+            stock,
+            alternatives: [],
+            originalName: productObj.name,
+            originalPrice: numericPrice,
+            isOriginalItem: stockStatus === "red",
+            fiscal: dbInventoryItem
+              ? {
+                  ncm: dbInventoryItem.fiscal?.ncm,
+                  cfop: dbInventoryItem.fiscal?.cfopSale,
+                  unit: dbInventoryItem.unit,
+                  cest: dbInventoryItem.fiscal?.cest,
+                  csosn: dbInventoryItem.fiscal?.csosn,
+                  origin: dbInventoryItem.fiscal?.origin,
+                }
+              : null,
+          };
+        }),
+      );
+
+      const registeredSale = registeredSalesByOriginalId.get(String(sale._id));
+      const formatedRegisteredProducts = registeredSale
+        ? registeredSale.products.map((prod) => {
+            const parsedProd =
+              typeof prod === "string" ? JSON.parse(prod) : prod;
+            return {
+              id: parsedProd.id || "unregistered",
+              barcode: parsedProd.barcode,
+              name: parsedProd.name,
+              isRegistered: true,
+              stockStatus: "green",
+              price: parseFloat(String(parsedProd.price).replace(",", ".")),
+              quantity: parseFloat(String(parsedProd.qtd).replace(",", ".")),
+            };
+          })
+        : null;
+
+      const formattedSale = {
+        id: String(sale._id),
+        date: registeredSale? registeredSale.date : sale.date,
+        total: parseFloat(String(sale.total).replace(",", ".")),
+        products: formatedRegisteredProducts
+          ? formatedRegisteredProducts
+          : hydratedProducts,
+        isRegistered: !!registeredSale,
+        registeredSaleId: registeredSale?._id
+          ? String(registeredSale._id)
+          : undefined,
+        registeredSaleInfo: registeredSale
+          ? {
+              saleId: registeredSale.saleId,
+              total: registeredSale.total,
+              nfcecode: registeredSale.nfcecode,
+            }
+          : undefined,
+      };
+
+      formattedSales.push(formattedSale);
+    }
+  } catch (error) {
+    console.log(error);
+  }
+
+  return formattedSales;
+}
+
+async function removeRegisteredSale(req, res) {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Sale ID is required" });
+    }
+
+    const registeredSale = await RegisteredSale.findById(id).lean();
+
+    if (!registeredSale) {
+      return res
+        .status(404)
+        .json({ status: "error", message: "Sale not found" });
+    }
+
+    await Promise.all(
+      registeredSale.products.map((product) => {
+        if (!product.barcode) {
+          return null;
+        }
+
+        return RegisteredProduct.updateOne(
+          { barcode: product.barcode },
+          {
+            $inc: {
+              stock: parseFloat(String(product.qtd).replace(",", ".")) || 0,
+            },
+          },
+        );
+      }),
+    );
+
+    await RegisteredSale.deleteOne({ _id: id });
+
+    res.status(200).json({
+      status: "success",
+      message: "Registered sale removed successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json(
+        "Error: " +
+          (error.errorResponse?.errmsg ||
+            error.message ||
+            "An error occurred while removing the registered sale"),
+      );
+  }
+}
+
+export default {
+  createRegisteredSale,
+  getRegisteredSales,
+  removeRegisteredSale,
+  updateRegisteredSaleNfceCode,
+};

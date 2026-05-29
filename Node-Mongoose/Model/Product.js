@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+// Old product model without fiscal data
 const Schema = new mongoose.Schema({
     barcode: {
         type: String,

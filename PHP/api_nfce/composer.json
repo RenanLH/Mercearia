@@ -1,0 +1,15 @@
+{
+    "name": "bstt/api_nfce",
+    "authors": [
+        {
+            "name": "RenanLH"
+        }
+    ],
+    "require": {
+        "slim/slim": "^4.15",
+        "slim/psr7": "^1.8",
+        "nfephp-org/sped-nfe": "^5.2",
+        "vlucas/phpdotenv": "^5.6",
+        "nfephp-org/sped-da": "^1.1"
+    }
+}

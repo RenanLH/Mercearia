@@ -3,8 +3,8 @@
 version = 4
 
 [[package]]
-name = "Mercearia"
-version = "0.2.0"
+name = "Mercadinho"
+version = "0.1.4"
 dependencies = [
  "serde",
  "serde_json",

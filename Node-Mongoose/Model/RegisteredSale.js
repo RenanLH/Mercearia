@@ -17,6 +17,10 @@ const Schema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    nfcecode: {
+        type: String,
+        default: null,
+    },
     date: {
         type: Date,
         required: true,

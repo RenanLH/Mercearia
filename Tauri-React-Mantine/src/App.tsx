@@ -8,6 +8,7 @@ import NovaVenda from "./screens/novaVenda";
 import novoProduto from './screens/novoProduto';
 import Historico from './screens/historico';
 import Vendas from './screens/vendas';
+import RegisteredProducts from './screens/registeredProducts';
 
 function App() {
   const views = [{
@@ -31,6 +32,10 @@ function App() {
     path: 'vendas',
     name: 'vendas',
     component: Vendas
+  },{
+    path: 'registeredProducts',
+    name: 'registeredProducts',
+    component: RegisteredProducts
   }];
   
   return (

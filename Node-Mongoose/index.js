@@ -8,11 +8,38 @@ import routes from "./Routes/server.js";
 dotenv.config();
 
 const dbUri = process.env.DATABASE_URL;
+let reconnectTimer = null;
 
+async function connectToMongo() {
+  if (mongoose.connection.readyState === 1) return;
 
-mongoose.connect(dbUri)
-  .catch((error) => console.log(error))
-  .then(() => console.log("conected to database"))
+  try {
+    await mongoose.connect(dbUri);
+    console.log("conected to database");
+  } catch (error) {
+    console.log(error);
+    scheduleReconnect();
+  }
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectToMongo();
+  }, 5 * 60 * 1000);
+}
+
+mongoose.connection.on("disconnected", scheduleReconnect);
+mongoose.connection.on("connected", () => {
+  if (!reconnectTimer) return;
+
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+});
+
+connectToMongo();
 
 const app = express();
 
