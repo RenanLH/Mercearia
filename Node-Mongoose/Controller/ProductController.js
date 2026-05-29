@@ -3,9 +3,10 @@ import { rm, rename } from "fs/promises";
 import mongoose from "mongoose";
 import Product from "../Model/Product.js";
 import { isMongoOnline } from "../Util/Utilities.js"
+import { fileURLToPath } from "url";
 
-const productsDbPath = new URL("../LocalDB/products.db", import.meta.url).pathname;
-const productsTempDbPath = new URL("../LocalDB/products_temp.db", import.meta.url).pathname;
+const productsDbPath = fileURLToPath(new URL("../LocalDB/products.db", import.meta.url));
+const productsTempDbPath = fileURLToPath(new URL("../LocalDB/products_temp.db", import.meta.url));
 
 const localProductsDb = new Datastore({
   filename: productsDbPath,

@@ -2,11 +2,12 @@ import Datastore from "@seald-io/nedb";
 import { rm, rename } from "fs/promises";
 import Product from "../Model/Product.js";
 import Sale from "../Model/Sale.js";
-import { isMongoOnline } from "../Util/Utilities.js"
+import { isMongoOnline } from "../Util/Utilities.js";
+import { fileURLToPath } from "url";
 
-const salesDbPath = new URL("../LocalDB/sales.db", import.meta.url).pathname;
-const salesTempDbPath = new URL("../LocalDB/sales_temp.db", import.meta.url).pathname;
-const pendingSalesDbPath = new URL("../LocalDB/pending_sales.db", import.meta.url).pathname;
+const salesDbPath = fileURLToPath(new URL("../LocalDB/sales.db", import.meta.url));
+const salesTempDbPath = fileURLToPath(new URL("../LocalDB/sales_temp.db", import.meta.url));
+const pendingSalesDbPath = fileURLToPath(new URL("../LocalDB/pending_sales.db", import.meta.url));
 
 const localSalesDb = new Datastore({
   filename: salesDbPath,

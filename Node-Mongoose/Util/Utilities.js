@@ -8,7 +8,6 @@ async function isMongoOnline() {
       mongoose.connection.db.admin().ping(),
       new Promise((resolve) => setTimeout(() => resolve(null), 200)),
     ]);
-    console.log(status?.ok === 1? "online" : "local")
     return status?.ok === 1;
   } catch (error) {
     return false;
