@@ -8,15 +8,16 @@ import type {
   Sale,
 } from "./vendasTypes";
 
-export const PAGE_SIZE = 12;
-export const PDF_MATCH_WINDOW_MINUTES = 10;
-export const PDF_MATCH_WINDOW_MS = PDF_MATCH_WINDOW_MINUTES * 60 * 1500;
+export const PAGE_SIZE = 90;
+export const PDF_MATCH_WINDOW_MINUTES = 15;
+export const PDF_MATCH_WINDOW_MS = PDF_MATCH_WINDOW_MINUTES * 60 * 1000;
 export const MAX_NUMERIC_FIELD = 9999;
+export const FILTER_SALES = false;
 
 export const PAYMENT_METHOD_OPTIONS = [
   { value: "01", label: "Dinheiro" },
-  { value: "02", label: "Cartão de Crédito" },
-  { value: "03", label: "Cartão de Débito" },
+  { value: "02", label: "Crédito" },
+  { value: "03", label: "Débito" },
   { value: "17", label: "PIX" },
 ];
 
@@ -163,7 +164,6 @@ export const extractLinesFromRawText = (rawText: string) =>
       const matchDataHora = linha.match(/\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}/);
       const matchValor = linha.match(/R\$\s\d{1,3}(?:\.\d{3})*,\d{2}/);
       const matchTipo = linha.match(/(crédito|débito|pix)/i);
-
       if (!matchDataHora || !matchValor) return null;
 
       const tipoFormatado = matchTipo
@@ -249,7 +249,9 @@ export const applyPdfMatchesToSales = (
   pdfData: ExtractedPdfData | null,
   selectedDate: Date | null,
 ): Sale[] => {
+
   if (!pdfData || pdfData.vendas.length === 0) {
+
     return targetSales.map(
       (sale): Sale =>
         withCashTotals({
@@ -276,6 +278,7 @@ export const applyPdfMatchesToSales = (
   return targetSales.map((sale): Sale => {
     const saleTimestamp = new Date(sale.date).getTime();
     if (Number.isNaN(saleTimestamp)) {
+
       return withCashTotals({
         ...sale,
         paymentMethod: "01",
@@ -287,7 +290,7 @@ export const applyPdfMatchesToSales = (
     const amountCandidates = availableLines.filter((line) => {
       const sameAmount = Math.abs(line.amount - sale.originalTotal) < 0.01;
       const inWindow =
-        Math.abs(line.timestampMs - saleTimestamp) <= PDF_MATCH_WINDOW_MS;
+        (saleTimestamp - line.timestampMs)>=0 && (saleTimestamp - line.timestampMs) <= PDF_MATCH_WINDOW_MS;
       return !line.isUsed && sameAmount && inWindow;
     });
 
@@ -343,6 +346,7 @@ export const productToNfceItem = (
   item: Product | Alternative,
   quantity: number,
 ) => ({
+  sku: item.sku,
   qtd: quantity,
   price: item.price,
   product_id: item.sku || item.id,

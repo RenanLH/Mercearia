@@ -37,12 +37,18 @@ async function createRegisteredSale(req, res) {
 
     // Update stock for each product in the sale, change later to include products without barcode
     for (const product of nfcePayload.products) {
-      if (product.barcode) {
-        await RegisteredProduct.updateOne(
-          { barcode: product.barcode },
-          {
-            $inc: { stock: -parseFloat(String(product.qtd).replace(",", ".")) },
+      const result = await RegisteredProduct.updateOne(
+        { sku: product.sku },
+        {
+          $inc: {
+            stock: -parseFloat(String(product.qtd).replace(",", ".")) || 0,
           },
+        },
+      );
+
+      if (result.matchedCount === 0) {
+        throw new Error(
+          `Product with SKU ${product.sku} not found in inventory.`,
         );
       }
     }
@@ -55,7 +61,6 @@ async function createRegisteredSale(req, res) {
     });
   } catch (error) {
     console.log(error);
-    // Handle unique constraint errors
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(409).json({
@@ -73,7 +78,6 @@ async function createRegisteredSale(req, res) {
       );
   }
 }
-
 
 async function updateRegisteredSaleNfceCode(req, res) {
   try {
@@ -95,7 +99,7 @@ async function updateRegisteredSaleNfceCode(req, res) {
     const registeredSale = await RegisteredSale.findOneAndUpdate(
       { saleId },
       { $set: { nfcecode } },
-      { returnDocument: 'after' },
+      { returnDocument: "after" },
     ).lean();
 
     if (!registeredSale) {
@@ -258,7 +262,7 @@ async function formatSalesForFrontend(rawSalesFromDb) {
       RegisteredSale.find({
         originalSaleId: { $in: saleIds },
       })
-        .select("originalSaleId saleId total nfcecode products")
+        .select("originalSaleId saleId date total nfcecode products")
         .lean(),
 
       RegisteredProduct.find({
@@ -280,73 +284,19 @@ async function formatSalesForFrontend(rawSalesFromDb) {
 
     const inventoryByBarcode = new Map();
     for (const item of inventoryItems) {
-      if (item.barcode && !inventoryByBarcode.has(item.barcode)) {
-        if (item.barcode.substring(0, 1) === "0") {
-          const formatedBarcode = item.barcode.substring(1);
-          inventoryByBarcode.set(formatedBarcode, item);
+      if (item.stock > 0) {
+        if (item.barcode && !inventoryByBarcode.has(item.barcode)) {
+          if (item.barcode.substring(0, 1) === "0") {
+            const formatedBarcode = item.barcode.substring(1);
+            inventoryByBarcode.set(formatedBarcode, item);
+          }
+          inventoryByBarcode.set(item.barcode, item);
         }
-        inventoryByBarcode.set(item.barcode, item);
-      }
-      if (item.barcodeTrib && !inventoryByBarcode.has(item.barcodeTrib)) {
-        inventoryByBarcode.set(item.barcodeTrib, item);
+        if (item.barcodeTrib && !inventoryByBarcode.has(item.barcodeTrib)) {
+          inventoryByBarcode.set(item.barcodeTrib, item);
+        }
       }
     }
-
-    /*const alternativesCache = new Map();
-    async function getSuggestedAlternatives(numericPrice) {
-      const cacheKey = numericPrice.toFixed(2);
-      if (!alternativesCache.has(cacheKey)) {
-        const minPrice = numericPrice * 0.85;
-        const maxPrice = numericPrice * 1.15;
-
-        const queryPromise = RegisteredProduct.aggregate([
-          {
-            $addFields: {
-              priceNumber: {
-                $toDouble: "$salePrice",
-              },
-            },
-          },
-          {
-            $match: {
-              priceNumber: {
-                $gte: minPrice,
-                $lte: maxPrice,
-              },
-              stock: {
-                $gt: 0,
-              },
-            },
-          },
-          {
-            $sort: {
-              priceNumber: -1,
-            },
-          },
-          {
-            $limit: 5,
-          },
-          {
-            $project: {
-              _id: 1,
-              sku: 1,
-              name: 1,
-              barcode: 1,
-              barcodeTrib: 1,
-              price: "$salePrice",
-              stock: 1,
-              fiscal: 1,
-              unit: 1,
-            },
-          },
-        ]);
-
-        alternativesCache.set(cacheKey, queryPromise);
-      }
-
-      return alternativesCache.get(cacheKey);
-    }*/
-
     for (const { sale, products } of normalizedSales) {
       const hydratedProducts = await Promise.all(
         products.map(async (productObj) => {
@@ -364,29 +314,11 @@ async function formatSalesForFrontend(rawSalesFromDb) {
 
           if (dbInventoryItem) {
             isRegistered = true;
-            stock = dbInventoryItem.stock || 0;
-            stockStatus = stock ? (stock > 10 ? "green" : "yellow") : "red";
-          } /*else {
-            const suggestedAlts = await getSuggestedAlternatives(numericPrice);
-            alternatives = suggestedAlts.map((alt) => ({
-              id: String(alt._id),
-              sku: alt.sku,
-              barcode: alt.barcode,
-              name: alt.name,
-              price: alt.price.toString(),
-              stock: alt.stock,
-              fiscal: alt.fiscal
-                ? {
-                    ncm: alt.fiscal?.ncm,
-                    cfop: alt.fiscal?.cfopSale,
-                    unit: alt.unit,
-                    cest: alt.fiscal?.cest,
-                    csosn: alt.fiscal?.csosn,
-                    origin: alt.fiscal?.origin,
-                  }
-                : null,
-            }));
-          }*/
+            const numericStock = parseFloat(String(dbInventoryItem.stock).replace(",", "."));
+
+            stock = numericStock || 0;
+            stockStatus = stock <= 0 || stock < productObj.qtd ?  "red" : (stock > 10 ? "green" : "yellow");
+          } 
 
           return {
             id: productObj.id || "unregistered",
@@ -435,7 +367,7 @@ async function formatSalesForFrontend(rawSalesFromDb) {
 
       const formattedSale = {
         id: String(sale._id),
-        date: registeredSale? registeredSale.date : sale.date,
+        date: registeredSale ? registeredSale.date : sale.date,
         total: parseFloat(String(sale.total).replace(",", ".")),
         products: formatedRegisteredProducts
           ? formatedRegisteredProducts
@@ -480,14 +412,10 @@ async function removeRegisteredSale(req, res) {
         .json({ status: "error", message: "Sale not found" });
     }
 
-    await Promise.all(
+    const result = await Promise.all(
       registeredSale.products.map((product) => {
-        if (!product.barcode) {
-          return null;
-        }
-
         return RegisteredProduct.updateOne(
-          { barcode: product.barcode },
+          { sku: product.product_id },
           {
             $inc: {
               stock: parseFloat(String(product.qtd).replace(",", ".")) || 0,
@@ -497,6 +425,11 @@ async function removeRegisteredSale(req, res) {
       }),
     );
 
+    if (result.some((res) => res.matchedCount === 0)) {
+      throw new Error(
+        `One or more products in the sale were not found in inventory during stock rollback.`,
+      );
+    }
     await RegisteredSale.deleteOne({ _id: id });
 
     res.status(200).json({

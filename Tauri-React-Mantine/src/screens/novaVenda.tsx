@@ -27,6 +27,11 @@ type product = {
   qtd: string | number;
 };
 
+type staticProduct = {
+  name: string;
+  price: string;
+};
+
 function NovaVenda() {
   const [dpBoxValue, setDpBoxValue] = useState<string>("Diversos");
   const [erros, setErros] = useState<string | null>(null);
@@ -39,17 +44,10 @@ function NovaVenda() {
   const [valorPago, setValorPago] = useState<string | number>("");
   const [valorTroco, setValorTroco] = useState<string | number>(0.0);
 
-  const groceries = [
-    "Diversos",
-    "Pão Frances",
-    "Ovos",
-    "Gelo 1Kg",
-    "Gelo 5Kg",
-    "Carvão 4Kg",
-    "Carvão 9Kg",
-    "Lenha",
-    "Sabão em Barra",
-  ];
+  const [groceries, setGroceries] = useState< staticProduct[]>  ([
+    {name:"Diversos", price:""},
+  ]);
+
   const [total, setTotal] = useState<number>(0.0);
   const [preco, setPreco] = useState<string | number>("");
   const [qtd, setQtd] = useState<string | number>("1");
@@ -63,11 +61,49 @@ function NovaVenda() {
     inputRef?.current?.focus();
     combobox.selectNextOption();
     combobox.clickSelectedOption();
+    getStaticProducts()
   }, []);
 
   useEffect(() => {
     setTotal(getTotal);
   });
+
+  function setDefaultGroceries () { // set default groceries in case the API call fails
+    setGroceries(() => [
+      {name: "Diversos", price: "" },
+      {name: "Pão Frances", price: "0.6" },
+      {name:"Ovos", price:"0.85"},
+      {name:"Gelo 1Kg", price:"4.0"},
+      {name:"Gelo 5Kg", price:"10.0"},
+      {name:"Carvão 4Kg", price:"22.0"},
+      {name:"Carvão 9Kg", price:"48.0"},
+      {name:"Lenha", price:"18"},
+      {name:"Sabão em Barra", price:"3.5"}]);
+  }
+
+  function getStaticProducts() {
+    const url = "http://localhost:5000/staticProducts";
+
+    axios.get(url)
+      .then((result) => {
+        if (result.status == 200) {
+          const staticProducts = result.data;
+  
+          const groceriesList: staticProduct[] = staticProducts.map((product: staticProduct) => ({
+            name: product.name,
+            price: product.price,
+          }));
+
+          setGroceries((prev) => [...prev, ...groceriesList]);
+
+        } else {
+          setDefaultGroceries();
+        }
+    }).catch((_error) => {
+      //console.error("Error fetching static products:", error);
+      setDefaultGroceries();
+    });
+  }
 
   function removeItem(removeAtIndex: number) {
     inputRef?.current?.focus();
@@ -87,8 +123,8 @@ function NovaVenda() {
   }
 
   const options = groceries.map((item) => (
-    <Combobox.Option value={item} key={item}>
-      {item}
+    <Combobox.Option value={item.name} key={item.name}>
+      {item.name}
     </Combobox.Option>
   ));
 
@@ -106,25 +142,7 @@ function NovaVenda() {
   }
 
   function setPrecoDiversos(item: string) {
-    if (item == "Gelo 1Kg") {
-      setPreco(4);
-    } else if (item == "Pão Frances") {
-      setPreco(0.6);
-    } else if (item == "Ovos") {
-      setPreco(0.85);
-    } else if (item == "Gelo 5Kg") {
-      setPreco(10);
-    } else if (item == "Carvão 4Kg") {
-      setPreco(22);
-    } else if (item == "Carvão 9Kg") {
-      setPreco(48);
-    } else if (item == "Lenha") {
-      setPreco(18);
-    } else if (item == "Sabão em Barra") {
-      setPreco(3.5);
-    } else {
-      setPreco("");
-    }
+    setPreco(groceries.find((product) => product.name === item)?.price || "");
   }
 
   async function sendToPrinter() {
@@ -578,7 +596,7 @@ function NovaVenda() {
                 </Box>
                 <Box style={{ minWidth: 0 }}>
                   <Text c="#ffff" fz={{ base: "15px", sm: "20px" }} truncate>
-                    {product.name}
+                    {product.name.toUpperCase()}
                   </Text>
                 </Box>
                 <Box style={{ textAlign: "center" }}>

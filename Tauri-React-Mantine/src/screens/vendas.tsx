@@ -1,56 +1,27 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useReducer } from "react";
 import {
-  Container,
-  Stack,
-  Title,
-  Text,
-  Group,
-  Divider,
-  Box,
-  Badge,
-  Select,
-  Paper,
-  SimpleGrid,
-  Pagination,
-  Drawer,
-  ScrollArea,
-  ActionIcon,
-  Button,
-  NumberInput,
-  TextInput,
+  Container, Stack, Title, Text, Group,
+  Divider, Box, Badge, Select, Paper,
+  SimpleGrid, Pagination, Drawer, ScrollArea,
+  ActionIcon, Button, NumberInput, TextInput,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import {
-  IconCalendar,
-  IconReplace,
-  IconPlus,
-  IconRestore,
-  IconTrash,
-  IconColumns,
+  IconCalendar, IconReplace,
+  IconRestore, IconTrash, IconColumns,
+  IconChevronLeft,IconChevronRight, IconPlus
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import 'dayjs/locale/pt-br';
+import "dayjs/locale/pt-br";
 import axios from "axios";
 import * as pdfjsLib from "pdfjs-dist";
 import {
-  applyPdfMatchesToSales,
-  buildPdfExtractedSales,
-  clampNumericField,
-  extractLinesFromRawText,
-  formatMoney,
-  getAdjustedSaleTotal,
-  getProductDisplayLineTotal,
-  getProductQuantityForTotal,
-  getSaleStatusCounters,
-  getStatusColor,
-  MAX_NUMERIC_FIELD,
-  mergePdfMatches,
-  PAGE_SIZE,
-  PAYMENT_METHOD_OPTIONS,
-  productToNfceItem,
-  refreshSplitParents,
-  toPaymentMethodCode,
-  withCashTotals,
+  applyPdfMatchesToSales, buildPdfExtractedSales, clampNumericField,
+  extractLinesFromRawText, formatMoney, getAdjustedSaleTotal,
+  getProductDisplayLineTotal, getProductQuantityForTotal, getSaleStatusCounters,
+  getStatusColor, MAX_NUMERIC_FIELD, mergePdfMatches, PAGE_SIZE,
+  PAYMENT_METHOD_OPTIONS, FILTER_SALES, productToNfceItem,
+  refreshSplitParents, toPaymentMethodCode, withCashTotals,
 } from "./vendasHelpers";
 import type {
   Alternative,
@@ -59,6 +30,7 @@ import type {
   PdfExtractedSale,
   Product,
   Sale,
+  Action
 } from "./vendasTypes";
 import { PdfExtractedSalesModal } from "./vendasPdfModal";
 import { VendasSaleCard } from "./vendasSaleCard";
@@ -71,8 +43,7 @@ dayjs.locale("pt-br");
 const Vendas: React.FC = () => {
   const [activePage, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [date, setSelectedDate] = useState<Date | null>(new Date());
+  const [date, setSelectedDate] = useState<Date>(new Date());
   const [activeSaleDate, setActiveSaleDate] = useState<Date | null>(new Date());
   const [opened, setOpened] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
@@ -86,34 +57,72 @@ const Vendas: React.FC = () => {
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const [extractedPdfData, setExtractedPdfData] =
-    useState<ExtractedPdfData | null>(null);
+  const [extractedPdfData, setExtractedPdfData] = useState<ExtractedPdfData | null>(null);
   const [pdfExtractedSales, setPdfExtractedSales] = useState<
     PdfExtractedSale[]
   >([]);
   const [pdfWindowOpened, setPdfWindowOpened] = useState(false);
   const [isReadingPdf, setIsReadingPdf] = useState(false);
   const [selectedPdfName, setSelectedPdfName] = useState<string | null>(null);
+  const [alternativePrice, setAlternativePrice] = useState<number | string>('');
+  const [alternativeSearch, setAlternativeSearch] = useState<string>('');
+  const [redSale, dispatchSale] = useReducer(saleReducer, [] as Sale[]);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  // run side effect whenever drawer becomes opened
   useEffect(() => {
     if (opened) {
-      // your function when opened
       setActiveSaleDate(activeSale ? new Date(activeSale.date) : new Date());
     }
   }, [opened]);
 
-  const fetchSale = async (currentPage = 1) => {
-    const skip = (currentPage - 1) * PAGE_SIZE;
+  useEffect(() => {
+    const currentDate = new Date();
+    currentDate.setHours(22, 0, 0, 0); // Set to 22:00:00
+    setSelectedDate(currentDate);
+    fetchSale(1, currentDate);
 
+  }, []);
+
+  function saleReducer (sales: Sale[], action: Action)  {
+    switch (action.type) {
+      case "fetchedSale": {
+        return action.payload; //Sales
+      }
+
+      case "updatedSale": {
+        return [...sales.map((sale)=> (sale.id === selectedSaleId) ? action.payload.updater(sale) : sale)]; //Sales
+      }
+
+      default:
+        return sales;
+    }
+  }
+
+  function handleFetchedSales(sales: Sale[]) {
+    dispatchSale({
+      type: "fetchedSale",
+      payload: sales ,
+    });
+  }
+
+  function handleUpdatedSale( updater: (sale: Sale) => Sale) {
+    dispatchSale({
+      type: "updatedSale",
+      payload: { updater },
+    });
+  }
+
+
+  const fetchSale = async (currentPage = 1, newDate:Date = date) => {
+    const skip = (currentPage - 1) * PAGE_SIZE;
     const response = await axios.get("http://localhost:5000/sales/registered", {
       params: {
-        date,
+        date: newDate,
         limit: PAGE_SIZE,
         skip,
       },
     });
+    
 
     const { sales, numberSales, dailyTotal, registeredDailyTotal } =
       response.data as {
@@ -122,6 +131,8 @@ const Vendas: React.FC = () => {
         dailyTotal: number;
         registeredDailyTotal: number;
       };
+
+    console.log(sales);
     const salesWithOriginalTotal: Sale[] = sales.map(
       (sale): Sale => ({
         ...sale,
@@ -141,13 +152,14 @@ const Vendas: React.FC = () => {
     const matchedSales = applyPdfMatchesToSales(
       salesWithOriginalTotal,
       extractedPdfData,
-      date,
+      newDate,
     );
-    setSales(matchedSales);
+
+    handleFetchedSales(matchedSales);
     setPdfExtractedSales((previousPdfSales) => {
       const selectedDayPdfSales = buildPdfExtractedSales(
         extractedPdfData,
-        date,
+        newDate,
         previousPdfSales,
       );
       return mergePdfMatches(selectedDayPdfSales, matchedSales);
@@ -157,7 +169,28 @@ const Vendas: React.FC = () => {
     setRegisteredDailyTotal(registeredDailyTotal || 0);
   };
 
+  const setNextDay = async () => {
+    const nextDay = new Date(date);
+
+    nextDay.setDate(nextDay.getDate() + 1);
+    setSelectedDate(nextDay);
+
+    setPage(1);
+    await fetchSale(1, nextDay);
+  }
+
+  const setPreviousDay = async () => {
+    const previousDay = new Date(date);
+    previousDay.setDate(previousDay.getDate() - 1);
+    setSelectedDate(previousDay);
+
+    setPage(1);
+    await fetchSale(1, previousDay);
+  }
+
   const handleConfirmClick = async () => {
+    setPage(1);
+
     await fetchSale();
   };
 
@@ -168,7 +201,7 @@ const Vendas: React.FC = () => {
     if (getAdjustedSaleTotal(sale) == 0) {
       return false;
     }
-  
+
     return true;
   };
 
@@ -183,7 +216,7 @@ const Vendas: React.FC = () => {
 
   const handlePdfFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+    ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -232,8 +265,9 @@ const Vendas: React.FC = () => {
       };
 
       setExtractedPdfData(extractedData);
-      const matchedSales = applyPdfMatchesToSales(sales, extractedData, date);
-      setSales(matchedSales);
+      const matchedSales = applyPdfMatchesToSales(redSale, extractedData, date);
+      handleFetchedSales(matchedSales)
+
       setPdfExtractedSales(
         mergePdfMatches(
           buildPdfExtractedSales(extractedData, date),
@@ -241,19 +275,19 @@ const Vendas: React.FC = () => {
         ),
       );
       setSelectedPdfName(file.name);
-      setPdfStatusMessage({
+      setTimeout(() =>
+        setPdfStatusMessage({
         type: "success",
-        message: `PDF lido com sucesso: ${extractedData.vendas.length} venda(s) extraída(s).`,
-      });
+        message: `PDF lido com sucesso: ${extractedData.vendas.length} venda(s) extraída(s) - ${selectedPdfName}`,
+      }), 1000);
+
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Falha ao ler o PDF";
       setExtractedPdfData(null);
       setPdfExtractedSales([]);
       setPdfWindowOpened(false);
-      setSales((previousSales) =>
-        applyPdfMatchesToSales(previousSales, null, date),
-      );
+      handleFetchedSales(applyPdfMatchesToSales(redSale, null, date));
       setSelectedPdfName(null);
       setPdfStatusMessage({
         type: "error",
@@ -269,26 +303,18 @@ const Vendas: React.FC = () => {
     setExtractedPdfData(null);
     setPdfExtractedSales([]);
     setPdfWindowOpened(false);
-    setSales((previousSales) =>
-      applyPdfMatchesToSales(previousSales, null, date),
-    );
+    handleFetchedSales(applyPdfMatchesToSales(redSale, null, date));
     setSelectedPdfName(null);
     setPdfStatusMessage(null);
   };
 
-  const updateSale = (saleId: string, updater: (sale: Sale) => Sale) => {
-    setSales((previousSales) =>
-      previousSales.map((sale) => (sale.id === saleId ? updater(sale) : sale)),
-    );
-  };
 
   const updateSaleProduct = (
-    saleId: string,
     productIndex: number,
     updater: (product: Product) => Product,
     recalculateCashTotals = false,
   ) => {
-    updateSale(saleId, (sale) => {
+    handleUpdatedSale((sale) => {
       const updatedProducts = sale.products.map((product, index) =>
         index === productIndex ? updater(product) : product,
       );
@@ -298,19 +324,17 @@ const Vendas: React.FC = () => {
   };
 
   const handleChangeSalePaymentMethod = (
-    saleId: string,
     paymentMethod: PaymentMethodCode,
   ) => {
-    updateSale(saleId, (sale) => withCashTotals({ ...sale, paymentMethod }));
+    handleUpdatedSale((sale) => withCashTotals({ ...sale, paymentMethod }));
   };
 
   const handleChangePaidAmount = (
-    saleId: string,
     paidAmount: number | string,
   ) => {
     const parsedPaidAmount = clampNumericField(paidAmount);
 
-    updateSale(saleId, (sale) => {
+    handleUpdatedSale((sale) => {
       const adjustedTotal = getAdjustedSaleTotal(sale);
       return {
         ...sale,
@@ -393,7 +417,7 @@ const Vendas: React.FC = () => {
           await axios.put(`http://localhost:5000/sales/registered/${saleId}`, {
             nfcecode: nfceResult.data.chave_acesso,
           });
-          updateSale(activeSale.id, (sale) => ({
+          handleUpdatedSale((sale) => ({
             ...sale,
             isRegistered: true,
             registeredSaleId: registerResponse.data.registeredSaleId,
@@ -408,8 +432,9 @@ const Vendas: React.FC = () => {
             type: "success",
             message: `NFCe successfully issued! Sale ID: ${saleId}, Access Key: ${nfceResult.data.chave_acesso || "Generated"}`,
           });
-          // Auto-dismiss success message after 5 seconds
-          setTimeout(() => setStatusMessage(null), 5000);
+          setRegisteredDailyTotal((prev) => prev + activeAdjustedTotal);
+          setTimeout(() => setOpened(false), 500);
+          setTimeout(() => setStatusMessage(null), 1000);
         }
       } catch (nfceError: any) {
         // NFCe request failed - rollback the registered sale
@@ -422,7 +447,7 @@ const Vendas: React.FC = () => {
           await axios.delete("http://localhost:5000/sales/registered", {
             data: { id: registeredSaleId },
           });
-          updateSale(activeSale.id, (sale) => ({
+          handleUpdatedSale((sale) => ({
             ...sale,
             isRegistered: false,
           }));
@@ -451,11 +476,10 @@ const Vendas: React.FC = () => {
   };
 
   const handleReplaceItem = (
-    saleId: string,
     productIndex: number,
     selectedAltId: string,
   ) => {
-    updateSale(saleId, (sale) => {
+    handleUpdatedSale( (sale) => {
       const updatedProducts = [...sale.products];
       const product = updatedProducts[productIndex];
       const altIndex = product.alternatives.findIndex(
@@ -509,45 +533,44 @@ const Vendas: React.FC = () => {
     });
   };
 
-  const handleToggleIgnoredProduct = (saleId: string, productIndex: number) => {
+  const handleToggleIgnoredProduct = ( productIndex: number) => {
     updateSaleProduct(
-      saleId,
       productIndex,
       (product) => ({ ...product, ignored: !product.ignored }),
       true,
     );
   };
 
-  const handleAlternativeSearchField = (
-    saleId: string,
-    productIndex: number,
-    field: "alternativeSearch" | "alternativePrice",
-    value: string | number,
-  ) => {
-    const nextValue =
-      field === "alternativePrice" ? clampNumericField(value) : value;
-
-    updateSaleProduct(saleId, productIndex, (product) => ({
-      ...product,
-      [field]: nextValue,
-    }));
-  };
-
   const handleToggleAlternativeSearch = (
-    saleId: string,
+
     productIndex: number,
   ) => {
-    updateSaleProduct(saleId, productIndex, (product) => ({
+    const sale = redSale.find((item) => item.id === selectedSaleId);
+
+    if (!sale?.products[productIndex]?.alternativeSearchOpened) {
+      const safePrice =
+        sale?.products[productIndex]?.originalPrice ||
+        sale?.products[productIndex]?.price ||
+        0;
+      const safeQuantity = sale?.products[productIndex]?.quantity || 0;
+      const altPrice = safePrice * safeQuantity;
+      setAlternativePrice(safePrice);
+      setAlternativeSearch('');
+      handleSearchAlternatives(productIndex, altPrice);
+
+    }
+    updateSaleProduct(productIndex, (product) => ({
       ...product,
       alternativeSearchOpened: !product.alternativeSearchOpened,
+      alternativePrice: product.alternativePrice ||product.price
     }));
   };
 
   const handleSearchAlternatives = async (
-    saleId: string,
     productIndex: number,
+    altPrice?: number,
   ) => {
-    const sale = sales.find((item) => item.id === saleId);
+    const sale = redSale.find((item) => item.id === selectedSaleId);
     const product = sale?.products[productIndex];
     if (!product) return;
 
@@ -555,11 +578,12 @@ const Vendas: React.FC = () => {
       "http://localhost:5000/registered-products",
       {
         params: {
-          search: product.alternativeSearch || "",
-          price: product.alternativePrice || "",
-          limit: 20,
-          sortBy: "stock",
+          search: alternativeSearch || "",
+          price:  altPrice || alternativePrice || "",
+          limit: 40,
+          sortBy: "salePrice,stock",
           sortOrder: "desc",
+          zeroStock: false,
         },
       },
     );
@@ -585,14 +609,13 @@ const Vendas: React.FC = () => {
         : undefined,
     }));
 
-    updateSaleProduct(saleId, productIndex, (product) => ({
+    updateSaleProduct(productIndex, (product) => ({
       ...product,
       alternativeResults: results,
     }));
   };
 
   const handleAddAlternative = (
-    saleId: string,
     productIndex: number,
     alternative: Alternative,
   ) => {
@@ -604,20 +627,20 @@ const Vendas: React.FC = () => {
       setTimeout(() => setStatusMessage(null), 3000);
       return;
     }
-    updateSaleProduct(saleId, productIndex, (product) => {
-      if (product.alternatives.some((item) => item.id === alternative.id)) {
+    updateSaleProduct(productIndex, (product) => {
+      if (product.id === alternative.id || product.alternatives.some((item) => item.id === alternative.id)) {
         return product;
       }
-
       return {
         ...product,
         alternatives: [...product.alternatives, alternative],
+        alternativeSearchOpened: false
       };
     });
+    handleReplaceItem(productIndex, alternative.id);
   };
 
   const handleSplitAlternative = (
-    saleId: string,
     productIndex: number,
     alternative: Alternative,
   ) => {
@@ -629,7 +652,7 @@ const Vendas: React.FC = () => {
       setTimeout(() => setStatusMessage(null), 3000);
       return;
     }
-    updateSale(saleId, (sale) => {
+    handleUpdatedSale((sale) => {
       const updatedProducts = [...sale.products];
       const product = updatedProducts[productIndex];
       if (!product) return sale;
@@ -679,8 +702,8 @@ const Vendas: React.FC = () => {
     });
   };
 
-  const handleRemoveSplitProduct = (saleId: string, productIndex: number) => {
-    updateSale(saleId, (sale) => {
+  const handleRemoveSplitProduct = ( productIndex: number) => {
+    handleUpdatedSale((sale) => {
       const updatedProducts = sale.products.filter(
         (_, index) => index !== productIndex,
       );
@@ -693,12 +716,10 @@ const Vendas: React.FC = () => {
   };
 
   const handleRemoveAddedAlternative = (
-    saleId: string,
     productIndex: number,
     alternativeId: string,
   ) => {
     updateSaleProduct(
-      saleId,
       productIndex,
       (product) => ({
         ...product,
@@ -711,14 +732,12 @@ const Vendas: React.FC = () => {
   };
 
   const handleChangeAlternativeQuantity = (
-    saleId: string,
     productIndex: number,
     quantity: number | string,
   ) => {
     const parsedQuantity = clampNumericField(quantity);
 
     updateSaleProduct(
-      saleId,
       productIndex,
       (product) => ({
         ...product,
@@ -733,7 +752,7 @@ const Vendas: React.FC = () => {
     setOpened(true);
   };
 
-  const activeSale = sales.find((s) => s.id === selectedSaleId);
+  const activeSale = redSale.find((s) => s.id === selectedSaleId);
   const activeCounters = activeSale
     ? getSaleStatusCounters(activeSale)
     : { actionRequiredCount: 0, resolvedCount: 0 };
@@ -746,8 +765,9 @@ const Vendas: React.FC = () => {
   }
 
   return (
-    <Container size="lg" py="xl">
-      <Stack gap="xl">
+    <Container fluid >
+      <Stack gap="xl" py="xl">
+        
         <Group justify="space-between" align="flex-end">
           <Box>
             <Title order={1} fw={900} lts="-0.5px">
@@ -762,19 +782,33 @@ const Vendas: React.FC = () => {
           </Box>
 
           <Group align="flex-end">
+            <Button
+              variant="transparent"
+              onClick={setPreviousDay}
+            >
+              <IconChevronLeft size={26}/>
+            </Button>
+
             <DateTimePicker
               valueFormat="DD MMM YYYY hh:mm A"
               leftSection={<IconCalendar size={18} stroke={1.5} />}
               label=""
               placeholder="Pick date and time"
               value={date}
-              onChange={setSelectedDate}
+              onChange={(value) => {setSelectedDate(value || new Date());}}
               w={280}
               submitButtonProps={{
-                onClick: handleConfirmClick,
-                "aria-label": "Confirm date and time",
+                onClick: handleConfirmClick
               }}
             />
+
+
+            <Button
+              variant="transparent"
+              onClick={setNextDay}
+            >
+              {<IconChevronRight size={26} />}
+            </Button>
             <Button onClick={handlePickPdf} loading={isReadingPdf}>
               Ler PDF
             </Button>
@@ -795,11 +829,6 @@ const Vendas: React.FC = () => {
             />
           </Group>
         </Group>
-        {selectedPdfName && (
-          <Text size="sm" fw={600} c="blue">
-            PDF selecionado: {selectedPdfName}
-          </Text>
-        )}
         {pdfStatusMessage && (
           <Paper
             p="md"
@@ -837,26 +866,43 @@ const Vendas: React.FC = () => {
             </Group>
           </Paper>
         )}
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
-          {sales.map((sale) => (
-            <VendasSaleCard
-              key={sale.id}
-              sale={sale}
-              onViewSale={handleViewSale}
-            />
-          ))}
-        </SimpleGrid>
 
         {totalPages > 1 && (
-          <Group justify="center">
-            <Pagination
+          <Pagination
+              style={{ alignSelf: "center" }}
               total={totalPages}
               value={activePage}
               onChange={handlePageChange}
               color="blue"
               radius="md"
             />
-          </Group>
+        )}
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="lg">
+
+          {FILTER_SALES ? redSale.filter((sale) => getSaleStatusCounters(sale).actionRequiredCount == 0).map((sale) => (
+            <VendasSaleCard
+              key={sale.id}
+              sale={sale}
+              onViewSale={handleViewSale}
+            />
+            ))
+            :redSale.map((sale) => (
+              <VendasSaleCard
+                key={sale.id}
+                sale={sale}
+                onViewSale={handleViewSale}
+              />
+          ))}
+        </SimpleGrid>
+        {totalPages > 1 && (
+          <Pagination
+              style={{ alignSelf: "center" }}
+              total={totalPages}
+              value={activePage}
+              onChange={handlePageChange}
+              color="blue"
+              radius="md"
+            />
         )}
       </Stack>
 
@@ -901,20 +947,20 @@ const Vendas: React.FC = () => {
                         setActiveSaleDate(new Date());
                         return;
                       }
-                    
                       // incoming value is a Date (from DatePicker)
                       const newDate = new Date(value); // copy
-                    
+
                       // get previous seconds from activeSale.date (handle string or Date)
                       const prev = new Date(activeSale.date);
-                      newDate.setSeconds(prev.getSeconds(), prev.getMilliseconds());
-                    
+                      newDate.setSeconds(
+                        prev.getSeconds(),
+                        prev.getMilliseconds(),
+                      );
+
                       setActiveSaleDate(newDate);
                     }}
                     w={280}
-                    
                   />
-                
                 </Box>
                 <Stack gap={0} align="flex-end">
                   {activeOriginalTotal !== activeAdjustedTotal && (
@@ -947,7 +993,6 @@ const Vendas: React.FC = () => {
                 value={activeSale.paymentMethod}
                 onChange={(val) =>
                   handleChangeSalePaymentMethod(
-                    activeSale.id,
                     toPaymentMethodCode(val),
                   )
                 }
@@ -959,7 +1004,7 @@ const Vendas: React.FC = () => {
                     label="Pago"
                     value={activeSale.paidAmount}
                     onChange={(value) =>
-                      handleChangePaidAmount(activeSale.id, value)
+                      handleChangePaidAmount(value)
                     }
                     allowNegative={false}
                     max={MAX_NUMERIC_FIELD}
@@ -991,13 +1036,13 @@ const Vendas: React.FC = () => {
                     ? "Esta venda já foi registrada em NFCe"
                     : activeCounters.actionRequiredCount > 0
                       ? `Resolva os ${activeCounters.actionRequiredCount} erro(s) primeiro`
-                      :  "Enviar para NFCe"
+                      : "Enviar para NFCe"
                 }
               >
                 {activeSale?.isRegistered
                   ? "Já registrada"
                   : activeCounters.actionRequiredCount > 0
-                    ? `${activeCounters.actionRequiredCount} Erros na venda `
+                    ? `${activeCounters.actionRequiredCount} Erro(s) `
                     : "Enviar"}
               </Button>
             </Group>
@@ -1032,16 +1077,18 @@ const Vendas: React.FC = () => {
 
             <Divider my="sm" />
 
-            {activeSale.products.map((item, index) => {
+            {activeSale?.products.map((item, index) => {
               const quantityForTotal = getProductQuantityForTotal(item);
               const lineTotal = getProductDisplayLineTotal(item);
               const addedAlternatives = item.alternatives
-                ? item.alternatives.filter(
-                    (alternative) => alternative.isAddedAlternative,
-                  )
-                : [];
+              ? item.alternatives.filter(
+                   (alternative) => alternative.isAddedAlternative,
+                 )
+               : [];
               const canManageAlternatives =
-                item.stockStatus === "red" || item.isAddedAlternative || item.ignored;
+                item.stockStatus === "red" ||
+                item.isAddedAlternative ||
+                item.ignored;
 
               const selectOptions = [
                 {
@@ -1128,7 +1175,7 @@ const Vendas: React.FC = () => {
                             variant="light"
                             color={getStatusColor(item.stockStatus)}
                           >
-                            Estoque: {item.stock}
+                            Estoque: {Number(item.stock)}
                           </Badge>
                         )}
                       </Group>
@@ -1140,14 +1187,13 @@ const Vendas: React.FC = () => {
                         </Text>
                       )}
 
-                      {item.alternatives?.length > 0 && (
+                      {canManageAlternatives && (
                         <Group gap="xs" align="flex-end" mt={8}>
                           <NumberInput
                             size="xs"
                             value={item.alternativeQuantity}
                             onChange={(value) =>
                               handleChangeAlternativeQuantity(
-                                activeSale.id,
                                 index,
                                 value,
                               )
@@ -1159,28 +1205,24 @@ const Vendas: React.FC = () => {
                             hideControls
                             w={45}
                           />
-                          {
-                            selectOptions.length > 0 && (
-                              <Select
-                                size="xs"
-                                value={item.id}
-                                data={selectOptions}
-                                leftSection={<IconReplace size={14} />}
+                          {selectOptions.length > 0 && (
+                            <Select
+                              size="xs"
+                              value={item.id}
+                              data={selectOptions}
+                              leftSection={<IconReplace size={14} />}
                               mt={8}
                               w={414}
-                                searchable
-                                allowDeselect={false}
-                                onChange={(val) => {
-                                  if (val && val !== item.id)
-                                    handleReplaceItem(activeSale.id, index, val);
-                                }}
-                              />
-                            )}
-
+                              searchable
+                              allowDeselect={false}
+                              onChange={(val) => {
+                                if (val && val !== item.id)
+                                  handleReplaceItem(index, val);
+                              }}
+                            />
+                          )}
                         </Group>
                       )}
-
-                      
 
                       {canManageAlternatives && (
                         <Stack gap="xs" mt={8}>
@@ -1189,7 +1231,6 @@ const Vendas: React.FC = () => {
                             variant="light"
                             onClick={() =>
                               handleToggleAlternativeSearch(
-                                activeSale.id,
                                 index,
                               )
                             }
@@ -1205,29 +1246,15 @@ const Vendas: React.FC = () => {
                                 <TextInput
                                   size="xs"
                                   label="Buscar alternativa"
-                                  value={item.alternativeSearch || ""}
-                                  onChange={(event) =>
-                                    handleAlternativeSearchField(
-                                      activeSale.id,
-                                      index,
-                                      "alternativeSearch",
-                                      event.currentTarget.value,
-                                    )
-                                  }
+                                  value={alternativeSearch}
+                                  onChange={(event) => setAlternativeSearch(event.currentTarget.value)}
                                   style={{ flex: 1 }}
                                 />
                                 <NumberInput
                                   size="xs"
                                   label="Preço"
-                                  value={item.alternativePrice || ""}
-                                  onChange={(value) =>
-                                    handleAlternativeSearchField(
-                                      activeSale.id,
-                                      index,
-                                      "alternativePrice",
-                                      value || "",
-                                    )
-                                  }
+                                  value={alternativePrice}
+                                  onChange={setAlternativePrice}
                                   allowNegative={false}
                                   max={MAX_NUMERIC_FIELD}
                                   decimalScale={2}
@@ -1241,7 +1268,6 @@ const Vendas: React.FC = () => {
                                   variant="light"
                                   onClick={() =>
                                     handleSearchAlternatives(
-                                      activeSale.id,
                                       index,
                                     )
                                   }
@@ -1258,16 +1284,18 @@ const Vendas: React.FC = () => {
                                     gap="xs"
                                   >
                                     <Text size="xs" lineClamp={1}>
-                                      {alternative.stock} x {" "}
-                                      {alternative.name.length>45? alternative.name.substring(0,45) : alternative.name} -{" "}
-                                      {formatMoney(alternative.price)}
+                                      {alternative.stock} x{" "}
+                                      {alternative.name.length > 45
+                                        ? alternative.name.substring(0, 45)
+                                        : alternative.name}{" "}
+                                      - {formatMoney(alternative.price)}
                                     </Text>
                                     <ActionIcon
                                       size="sm"
                                       variant="subtle"
                                       onClick={() =>
                                         handleAddAlternative(
-                                          activeSale.id,
+
                                           index,
                                           alternative,
                                         )
@@ -1282,7 +1310,6 @@ const Vendas: React.FC = () => {
                                       color="blue"
                                       onClick={() =>
                                         handleSplitAlternative(
-                                          activeSale.id,
                                           index,
                                           alternative,
                                         )
@@ -1312,7 +1339,6 @@ const Vendas: React.FC = () => {
                                 color="red"
                                 onClick={() =>
                                   handleRemoveAddedAlternative(
-                                    activeSale.id,
                                     index,
                                     alternative.id,
                                   )
@@ -1333,19 +1359,19 @@ const Vendas: React.FC = () => {
                           variant="subtle"
                           color="red"
                           onClick={() =>
-                            handleRemoveSplitProduct(activeSale.id, index)
+                            handleRemoveSplitProduct(index)
                           }
                           aria-label="Remover produto dividido"
                         >
                           <IconTrash size={16} />
                         </ActionIcon>
                       )}
-                      {!activeSale.isRegistered &&  !item.isSplitProduct && (
+                      {!activeSale.isRegistered && !item.isSplitProduct && (
                         <ActionIcon
                           variant="subtle"
                           color={item.ignored ? "blue" : "gray"}
                           onClick={() =>
-                            handleToggleIgnoredProduct(activeSale.id, index)
+                            handleToggleIgnoredProduct(index)
                           }
                           aria-label={
                             item.ignored
@@ -1361,7 +1387,7 @@ const Vendas: React.FC = () => {
                         </ActionIcon>
                       )}
                       <Text ff="monospace" fw={700}>
-                        {formatMoney(lineTotal)}
+                        {formatMoney(lineTotal).replace(",", ".")}
                       </Text>
                       {quantityForTotal !== 1 && (
                         <Text size="xs" c="dimmed">

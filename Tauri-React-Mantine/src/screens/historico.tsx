@@ -1,29 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Container,
-  Stack,
-  Title,
-  Card,
-  Text,
-  Group,
-  Divider,
-  Box,
-  Badge,
-  Paper,
-  SimpleGrid,
-  Pagination,
-  Drawer,
-  ScrollArea,
-  ActionIcon,
-  Button,
-  rem,
+  Container, Stack, Title,
+  Card, Text, Group,
+  Divider, Box, Badge,
+  Paper, SimpleGrid, Pagination,
+  Drawer, ScrollArea, ActionIcon,
+  Button, rem
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import {
-  IconCalendar,
-  IconChevronRight,
-  IconEye,
-  IconEyeOff,
+  IconCalendar, IconChevronRight,
+  IconEye, IconEyeOff,
   IconArrowLeft,
 } from "@tabler/icons-react";
 import axios from "axios";
@@ -56,6 +43,10 @@ const History: React.FC = () => {
   const [canPrint, setCanPrint] = useState<boolean>(true);
   const [showTotal, setShowTotal] = useState<boolean>(false);
   const [dailySales, setDailySales] = useState(0);
+
+  useEffect(() => {
+    fetchSale();
+  }, []);
 
   const fetchSale = async (currentPage = 1) => {
     const skip = (currentPage - 1) * PAGE_SIZE;
@@ -171,15 +162,14 @@ const History: React.FC = () => {
 
   return (
     <>
-      <div
-        style={{ position: "absolute", top: "1rem", left: "1rem", zIndex: 100 }}
-      >
+      <div style={{ position: "absolute", top: "1rem", left: "1rem", zIndex: 100 }}>
         <NavLink to="/">
           <ActionIcon size={42} variant="default" aria-label="Voltar">
             <IconArrowLeft style={{ width: rem(24), height: rem(24) }} />
           </ActionIcon>
         </NavLink>
       </div>
+      
       <Container h={"100%"} size="xl" py="md">
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
@@ -216,7 +206,6 @@ const History: React.FC = () => {
                 onClick: handleConfirmClick,
                 "aria-label": "Confirm date and time",
               }}
-              clearable
             />
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">

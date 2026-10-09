@@ -3,9 +3,10 @@ import Product from "../Model/Product.js";
 import Purchase from "../Model/Purchase.js";
 import RegisteredSale from "../Model/RegisteredSale.js";
 import {
-  hasValidBarcode,
-  getEffectiveStock,
+  safeSum,
   toDecimal128,
+  getProductKey,
+  hasValidBarcode,
 } from "../Util/Utilities.js";
 import {
   buildFiscalDefaults,
@@ -40,167 +41,137 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function parseStockNumber(value) {
+function parseDecimalNumber(value) {
   return Number(String(value ?? 0).replace(",", ".")) || 0;
 }
 
-function hasUsableBarcode(value) {
-  return hasValidBarcode(value) && value !== "SEM GTIM";
-}
 
-function getProductMovementKey(product) {
-  const barcode = hasUsableBarcode(product.barcode) ? product.barcode : null;
-  const ncm = product.fiscal?.ncm;
 
-  if (barcode) {
-    return `barcode:${barcode}`;
+function getStockToAdd(product) {
+  const stockTrib = parseDecimalNumber(product.qTrib ?? product.stockTrib);
+  const stock = parseDecimalNumber(product.qCom ?? product.stock);
+  const unit = product.uCom ?? product.unit;
+  const unitTrib = product.uTrib ?? product.unitTrib;
+
+  if (unit.includes("CX") && !unitTrib.includes("CX")) {
+    return stockTrib;
   }
 
-  return `name-ncm:${product.name}:${ncm}`;
+  return stock;
 }
 
-function getPurchaseProductKey(product) {
-  const barcode = hasUsableBarcode(product.cEAN) ? product.cEAN : null;
 
-  if (barcode) {
-    return `barcode:${barcode}`;
-  }
-
-  return `name-ncm:${product.xProd}:${product.NCM}`;
-}
-
-function getRegisteredSaleProductKey(product) {
-  const barcode = hasUsableBarcode(product.barcode) ? product.barcode : null;
-
-  if (barcode) {
-    return `barcode:${barcode}`;
-  }
-
-  return `name-ncm:${product.name}:${product.ncm}`;
-}
-
-function addMovementTotal(totals, key, quantity) {
-  if (totals.has(key)) {
-    totals.set(key, totals.get(key) + quantity);
-  }
-}
-
-function getStockAndConversionFactor(product, unitTrib) {
-  const unit = String(product.unit || "").toLowerCase();
-  const tribUnit = String(unitTrib || "").toLowerCase();
-  const name = String(product.name || "").toLowerCase();
-
-  if (unit === "cx" && tribUnit === "kg" && !name.includes("kg")) {
-    const grams = name.match(/\b(\d+(?:[.,]\d+)?)\s*g\b/i);
+function getStockAndConversionFactor(product, stockToAdd) {
+  const safeUnit = String(product.unit).toLowerCase();
+  const safeTribUnit = String(product.unitTrib).toLowerCase();
+  const safeName = String(product.name).toLowerCase();
+  const stockTrib = parseDecimalNumber(stockToAdd);
+  if (safeUnit === "kg" && safeTribUnit !== "kg") {
+    const grams = safeName.match(/\b(\d+(?:[.,]\d+)?)\s*g\b/i);
 
     if (grams) {
-      const conversionFactor = Number(grams[1].replace(",", ".")) / 1000;
+      const conversionFactor = Number(grams[1].replace(",", "."));
 
-      if (conversionFactor > 0) {
+      if (conversionFactor > 1) {
+        const safeStockTrib = stockTrib * 1000; // Convert to grams
         return {
-          stock: parseStockNumber(product.stockTrib) / conversionFactor,
+          stock: safeStockTrib / conversionFactor,
           conversionFactor,
         };
       }
     }
+    if ((product.barcode === "17896275920835" && product.barcodeTrib === "7896275920838") || product.barcode === "7896275920838")  { // MORTADELA TIPO BOLOGNA FAT
+      const conversionFactor = 200; // 200g per unit
+      const safeStockTrib = stockTrib * 1000; // Convert to grams
+      return {
+        stock: safeStockTrib / conversionFactor,
+        conversionFactor,
+      };
+    }
+
+    if ((product.barcode === "17896275900035" && product.barcodeTrib === "7896275900038") || product.barcode === "7896275900038") { // HAMBURGUER BOVINO GRANEL 2,016kg
+      const conversionFactor = 56; // 56g per unit
+      const safeStockTrib = stockTrib * 1000; // Convert to grams
+      return {
+        stock: safeStockTrib / conversionFactor,
+        conversionFactor,
+      };
+    }
+
+    if ((product.barcode === "17896275900578" && product.barcodeTrib === "7896275900571") || product.barcode === "7896275900571") { // HAMBURGUER CARNE BOVINA 6,048kg
+      const conversionFactor = 56; // 56g per unit
+      const safeStockTrib = stockTrib * 1000; // Convert to grams
+      return {
+        stock: safeStockTrib / conversionFactor,
+        conversionFactor,
+      };
+    }
+
+    return {
+      stock: stockTrib,
+      conversionFactor: 1000, // Default conversion factor for kg to g
+    };
   }
 
   return {
-    stock: getEffectiveStock(
-      product.stock,
-      product.stockTrib,
-      product.unit,
-      unitTrib,
-      product.costPrice,
-      product.costPriceTrib,
-      product.name,
-    ),
+    stock: stockTrib,
     conversionFactor: 1,
   };
 }
 
-async function createRegisteredProduct(productsInput, session) {
-  const products = Array.isArray(productsInput)
-    ? productsInput
-    : [productsInput];
+async function createRegisteredProduct(productList, session) {
+  const products = Array.isArray(productList)
+    ? productList
+    : [productList];
   const productMap = new Map();
 
   const barcodes = [];
-  const barcodesTrib = [];
 
   for (const product of products) {
     const barcode = product.barcode || "SEM GTIN";
-    const barcodeTrib = product.barcodeTrib || barcode;
-
     if (hasValidBarcode(barcode)) {
       barcodes.push(barcode);
-    }
-    if (hasValidBarcode(barcodeTrib) && barcodeTrib !== barcode) {
-      barcodesTrib.push(barcodeTrib);
     }
   }
 
   const existingByBarcode = new Map();
   const newProducts = [];
-  if (barcodes.length > 0 || barcodesTrib.length > 0) {
+  if (barcodes.length > 0) {
     const existingProducts = await RegisteredProduct.find({
-      $or: [
-        ...(barcodes.length > 0
-          ? [{ barcode: { $in: barcodes } }, { barcodeTrib: { $in: barcodes } }]
-          : []),
-        ...(barcodesTrib.length > 0
-          ? [
-              { barcode: { $in: barcodesTrib } },
-              { barcodeTrib: { $in: barcodesTrib } },
-            ]
-          : []),
-      ],
+      barcode: { $in: barcodes } // , { barcodeTrib: { $in: barcodes } } not needed because we are only checking for the main barcode here
     })
-      .session(session)
-      .lean();
+    .session(session)
+    .lean();
+
 
     existingProducts.forEach((p) => {
       existingByBarcode.set(p.barcode, p);
-      existingByBarcode.set(p.barcodeTrib, p);
     });
+
   }
 
   for (const product of products) {
     const barcode = product.barcode || "SEM GTIN";
-    const barcodeTrib = product.barcodeTrib || barcode;
-    const mapKey = hasValidBarcode(barcode)
-      ? barcode
-      : product.code + product.name;
-
+    const mapKey = getProductKey(product);
     let existing = null;
     if (hasValidBarcode(barcode)) {
       existing = existingByBarcode.get(barcode);
-    } else if (hasValidBarcode(barcodeTrib)) {
-      existing = existingByBarcode.get(barcodeTrib);
-    }
-
-    if (!existing) {
+    }else {
       existing = await RegisteredProduct.findOne({
         name: product.name,
         unit: product.unit,
         "fiscal.ncm": product.fiscal?.ncm,
       })
-        .session(session)
+      .session(session)
         .lean();
     }
 
     if (existing) {
-      existing.code = product.code;
-      existing.barcode = barcode;
-      existing.barcodeTrib = barcodeTrib;
-      existing.name = product.name;
-      existing.unit = product.unit;
-      existing.unitTrib = product.unitTrib || product.unit;
 
-      const stockData = getStockAndConversionFactor(product, existing.unitTrib);
-      existing.stock = Number(existing.stock || 0) + stockData.stock;
-      existing.conversionFactor = toDecimal128(stockData.conversionFactor);
+      const stockData = getStockAndConversionFactor(existing, product.stock);
+      const updatedStock = safeSum(Number(existing.stock), Number(stockData.stock));
 
+      existing.stock = toDecimal128(updatedStock);
       existing.costPrice = toDecimal128(product.costPrice);
       existing.costPriceTrib = toDecimal128(product.costPriceTrib);
       existing.fiscal = buildFiscalDefaults(product.fiscal);
@@ -212,13 +183,86 @@ async function createRegisteredProduct(productsInput, session) {
         { session },
       );
 
+      if (existing.unit === "CX"
+          && hasValidBarcode(product.barcode)
+          && hasValidBarcode(product.barcodeTrib)
+          && product.barcode != product.barcodeTrib) {
+
+          const singleExistingProduct = await RegisteredProduct.findOne({
+            barcode: product.barcodeTrib,
+            unit: product.unitTrib,
+          })
+            .session(session)
+            .lean();
+
+
+          if (singleExistingProduct) {
+            const singleStockData = getStockAndConversionFactor(singleExistingProduct, product.stockTrib);
+            const singleUpdatedStock = safeSum(Number(singleExistingProduct.stock), Number(singleStockData.stock));
+
+            singleExistingProduct.stock = toDecimal128(singleUpdatedStock);
+
+
+            await RegisteredProduct.updateOne(
+              { _id: singleExistingProduct._id },
+              { $set: singleExistingProduct },
+              { session },
+            );
+
+            const singleMapKey = hasValidBarcode(singleExistingProduct.barcode)
+              ? singleExistingProduct.barcode
+              : singleExistingProduct.code + singleExistingProduct.name;
+
+            productMap.set(singleMapKey, existing);
+          }
+
+        }
+
       productMap.set(mapKey, existing);
     } else {
       newProducts.push({
         inputProduct: product,
         barcode,
-        barcodeTrib,
+        single: false,
       });
+
+      if (product.unit === "CX"
+        && hasValidBarcode(product.barcode)
+        && hasValidBarcode(product.barcodeTrib)
+        && product.barcode != product.barcodeTrib) {
+
+        let singleTribProduct = await RegisteredProduct.findOne({
+          barcode: product.barcodeTrib,
+          unit: product.unitTrib,
+        })
+          .session(session)
+          .lean();
+
+        if (singleTribProduct) {
+          const stockData = getStockAndConversionFactor(singleTribProduct, product.stockTrib);
+          singleTribProduct.stock = safeSum(Number(singleTribProduct.stock), Number(stockData.stock));
+
+          await RegisteredProduct.updateOne(
+            { _id: singleTribProduct._id },
+            { $set: singleTribProduct },
+            { session },
+          );
+
+          productMap.set(singleTribProduct.barcode, singleTribProduct);
+        }
+        else {
+
+          singleTribProduct = { ...product };
+          singleTribProduct.unit = product.unitTrib;
+          singleTribProduct.unitTrib = "UN";
+
+          newProducts.push({
+            inputProduct: singleTribProduct,
+            barcode: product.barcodeTrib,
+            single: true,
+          });
+        }
+      }
     }
   }
 
@@ -234,32 +278,43 @@ async function createRegisteredProduct(productsInput, session) {
     let nextSku = Number(lastRegisteredProduct?.sku || 0);
 
     const oldBarcodes = newProducts
-      .map((p) => [p.barcode, p.barcodeTrib])
+      .map((p) => [p.barcode])
+      .flat()
+      .filter(hasValidBarcode);
+
+    const oldBarcodesZero = newProducts
+      .filter((p) => p.barcode && String(p.barcode).startsWith("00"))
+      .map((p) => [String(p.barcode).slice(1)])
       .flat()
       .filter(hasValidBarcode);
 
     const oldProductsMap = new Map();
-    if (oldBarcodes.length > 0) {
+    if (oldBarcodes.length > 0 || oldBarcodesZero.length > 0) {
       const oldProds = await Product.find({
-        $or: [{ barcode: { $in: oldBarcodes } }],
+        $or: [
+          { barcode: { $in: oldBarcodes } },
+          { barcode: { $in: oldBarcodesZero } },
+        ],
       }).lean();
       oldProds.forEach((p) => oldProductsMap.set(p.barcode, p));
     }
 
+
+
     const createPayload = newProducts.map(
-      ({ inputProduct, barcode, barcodeTrib }) => {
-        const oldProduct =
-          oldProductsMap.get(barcode) || oldProductsMap.get(barcodeTrib);
+      ({ inputProduct, barcode, single }) => {
+        const oldProduct = String(barcode).startsWith("00")? oldProductsMap.get(String(barcode).slice(1)): oldProductsMap.get(barcode);
         const unitTrib = inputProduct.unitTrib || inputProduct.unit;
-        const stockData = getStockAndConversionFactor(inputProduct, unitTrib);
+        const stockToAdd = getStockToAdd(inputProduct);
+        const stockData = getStockAndConversionFactor(inputProduct, single? inputProduct.stockTrib : stockToAdd);
         return {
           sku: ++nextSku,
           barcode,
-          barcodeTrib,
+          barcodeTrib: inputProduct.barcodeTrib || "SEM GTIN",
           name: inputProduct.name,
           unit: inputProduct.unit,
           unitTrib,
-          stock: stockData.stock,
+          stock: toDecimal128(stockData.stock),
           conversionFactor: toDecimal128(stockData.conversionFactor),
           costPrice: toDecimal128(inputProduct.costPrice),
           costPriceTrib: toDecimal128(inputProduct.costPriceTrib),
@@ -271,17 +326,11 @@ async function createRegisteredProduct(productsInput, session) {
         };
       },
     );
-
-    const createdProducts = await RegisteredProduct.create(createPayload, {
-      session,
-      ordered: true,
-    });
-
-    createdProducts.forEach((created, idx) => {
-      const { barcode, inputProduct } = newProducts[idx];
-      const mapKey = hasValidBarcode(barcode)
-        ? barcode
-        : inputProduct.code + inputProduct.name;
+    
+    const createdProducts = await RegisteredProduct.insertMany(createPayload, { session, ordered: true });
+    
+    createdProducts.forEach((created, _idx) => {
+      const mapKey = getProductKey(created);
       productMap.set(mapKey, created);
     });
   }
@@ -298,15 +347,9 @@ async function getRegisteredProducts(req, res) {
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
     const skip = (page - 1) * limit;
     const price = parseDecimalValue(req.query.price);
+    const zeroStock = String(req.query.zeroStock || "true").toLowerCase() === "true"; //Brings products with zero stock, used to show all registered products, Default is true
 
-    const sortByMap = {
-      stock: "stock",
-      name: "name",
-      salePrice: "salePrice",
-      createdAt: "createdAt",
-    };
-    const sortBy = sortByMap[sortByRaw] || "createdAt";
-
+    const sortByArray = sortByRaw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
     const query = {};
     if (search) {
       const escapedSearch = escapeRegex(search);
@@ -325,7 +368,15 @@ async function getRegisteredProducts(req, res) {
       };
     }
 
-    const sort = { [sortBy]: sortOrder, createdAt: -1, _id: -1 };
+    if (!zeroStock) {
+      query.stock = { $gt: 0 };
+    }
+
+    const sort = {};
+
+    for (const sortBy of sortByArray) {
+      sort[sortBy] = sortOrder;
+    }
 
     const [totalProducts, products] = await Promise.all([
       RegisteredProduct.countDocuments(query),
@@ -388,7 +439,7 @@ async function getRegisteredProductMovementTotals(req, res) {
     const products = await RegisteredProduct.find({
       _id: { $in: productIds },
     })
-      .select("_id name barcode fiscal.ncm")
+      .select("_id name barcode barcodeTrib fiscal.ncm")
       .lean();
 
     const totals = {};
@@ -397,16 +448,19 @@ async function getRegisteredProductMovementTotals(req, res) {
     const purchaseConditions = [];
     const saleConditions = [];
 
+
     for (const product of products) {
-      const key = getProductMovementKey(product);
+      const key = getProductKey(product);
       boughtTotals.set(key, 0);
       soldTotals.set(key, 0);
       totals[product._id] = { bought: 0, sold: 0, key };
 
-      if (hasUsableBarcode(product.barcode)) {
+      if (hasValidBarcode(product.barcode)) {
         purchaseConditions.push({ "products.cEAN": product.barcode });
         saleConditions.push({ "products.barcode": product.barcode });
-      } else {
+      }
+
+      else {
         purchaseConditions.push({
           "products.xProd": product.name,
           "products.NCM": product.fiscal?.ncm,
@@ -417,6 +471,7 @@ async function getRegisteredProductMovementTotals(req, res) {
         });
       }
     }
+
 
     const [purchases, registeredSales] = await Promise.all([
       purchaseConditions.length > 0
@@ -429,21 +484,21 @@ async function getRegisteredProductMovementTotals(req, res) {
 
     for (const purchase of purchases) {
       for (const product of purchase.products || []) {
-        addMovementTotal(
-          boughtTotals,
-          getPurchaseProductKey(product),
-          Number(product.stockCom ?? product.qCom) || 0,
-        );
+        const key = getProductKey(product);
+        const quantity = getStockToAdd(product);
+        if (boughtTotals.has(key)) {
+          boughtTotals.set(key, safeSum(boughtTotals.get(key), quantity));
+        }
       }
     }
 
     for (const registeredSale of registeredSales) {
       for (const product of registeredSale.products || []) {
-        addMovementTotal(
-          soldTotals,
-          getRegisteredSaleProductKey(product),
-          parseStockNumber(product.qtd),
-        );
+        const key = getProductKey(product);
+        const quantity = Number(product.qtd) || 0;
+        if (soldTotals.has(key)) {
+          soldTotals.set(key, safeSum(soldTotals.get(key), quantity));
+        }
       }
     }
 

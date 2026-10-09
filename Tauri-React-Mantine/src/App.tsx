@@ -37,11 +37,18 @@ function App() {
     name: 'registeredProducts',
     component: RegisteredProducts
   }];
-  
+
   return (
-        <AppShell header={{height: 60}} navbar={{width: 300, breakpoint:'sm'}}>
-          <Routes>{views.map((view, index)=> <Route key={index} path={view.path} element={<view.component/>}/>)}</Routes>
-        </AppShell>
+    <AppShell header={{height: 60}} navbar={{width: 300, breakpoint:'sm'}}>
+      <Routes>
+        {views.map((view, index) =>
+          <Route
+            key={index}
+            path={view.path}
+            element={<view.component/>}
+          />)}
+      </Routes>
+    </AppShell>
   );
 }
 

@@ -182,10 +182,13 @@ async function getSales(req, res) {
   }
 }
 
+//sync limited last 30 days
 async function syncSalesToLocalDb(req, res) {
   try {
     const batchSize = 100;
-    const cursor = Sale.find({}).sort({ _id: 1 }).lean().cursor({ batchSize });
+    const today = new Date();
+    const pastMonth = today - 30 * 24 * 60 * 60 * 1000; // 30 days ago in milliseconds
+    const cursor = Sale.find({date: {$gte: pastMonth}}).sort({ _id: 1 }).lean().cursor({ batchSize });
     const tempSalesDb = new Datastore({ filename: salesTempDbPath });
     let batch = [];
     let synced = 0;

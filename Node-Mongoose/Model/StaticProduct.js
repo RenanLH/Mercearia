@@ -1,6 +1,11 @@
-import { Mongoose } from "mongoose";
+import mongoose from "mongoose";
 
-const Schema = new Mongoose.Schema({
+const Schema = new mongoose.Schema({
+  sku: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   name: {
     type: String,
     required: true,
@@ -16,4 +21,4 @@ const Schema = new Mongoose.Schema({
   },
 });
 
-export default Mongoose.model("StaticProduct", Schema, "StaticProduct");
+export default mongoose.model("StaticProduct", Schema, "StaticProduct");

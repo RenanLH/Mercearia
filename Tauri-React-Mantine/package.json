@@ -1,7 +1,7 @@
 {
   "name": "mercadinho",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "td": "tauri dev",
@@ -19,8 +19,8 @@
     "@tauri-apps/api": "2",
     "@tauri-apps/plugin-opener": "2",
     "axios": "1.7.7",
-    "dayjs": "^1.11.21",
-    "pdfjs-dist": "^5.7.284",
+    "dayjs": "1.11.21",
+    "pdfjs-dist": "5.7.284",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-router-dom": "6"

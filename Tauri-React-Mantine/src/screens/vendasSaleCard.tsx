@@ -22,7 +22,6 @@ export const VendasSaleCard = ({ sale, onViewSale }: VendasSaleCardProps) => {
   const adjustedTotal = getAdjustedSaleTotal(sale);
   const { actionRequiredCount, resolvedCount } = getSaleStatusCounters(sale);
   const isMatchedByPdf = sale.isPdfMatched;
-
   return (
     <Card
       withBorder

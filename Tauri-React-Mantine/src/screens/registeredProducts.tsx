@@ -21,7 +21,9 @@ import axios from "axios";
 type RegisteredProduct = {
   _id: string;
   name: string;
+  sku: string;
   stock: number;
+  conversionFactor: number;
   bought?: number;
   sold?: number;
   barcode: string;
@@ -58,12 +60,37 @@ function RegisteredProducts() {
   const [products, setProducts] = useState<RegisteredProduct[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortBy, setSortBy] = useState("updatedAt");
   const [sortOrder, setSortOrder] = useState("desc");
   const [activePage, setActivePage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleUpdate = async() => { 
+    try {
+      setError("");
+      setLoading(true);
+      setProducts([]);
+      const res = await axios.post(
+        "http://localhost:8000/nfe-entrada",
+      );
+      if (res.status === 200) {
+        setError("Registered products updated successfully.");
+        setTimeout(() => fetchProducts(1), 1000);
+
+        
+      } else {
+        setError("Failed to update registered products.");
+      }
+    }catch (err: any) {
+      setError(
+        err?.response?.data ||
+          err?.message ||
+          "Error:Failed to update registered products",
+      );
+    }
+  }
 
   const fetchProducts = async (
     page: number,
@@ -88,7 +115,7 @@ function RegisteredProducts() {
 
       const products = response.data.products;
 
-      if (products.length > 0) {
+      if (Array.isArray(products)) {
         const totalsResponse = await axios.post<MovementTotalsResponse>(
           "http://localhost:5000/registered-products/movement-totals",
           {
@@ -122,6 +149,20 @@ function RegisteredProducts() {
     }
   };
 
+  function getStock(product: RegisteredProduct) {
+    if (product.barcode !== product.barcodeTrib) {
+      if (product.unitTrib.includes("KG")) {
+        return (product.bought)
+      }
+      return product.stock; // If the barcodes are different, return the stock as is (Case when the product is bought in a box and sold in units)
+    }
+    
+    if (product.bought !== undefined && product.sold !== undefined) {
+      return (product.bought || product.stock) - product.sold; // If bought is zero but it has stock, use stock as the bought value (Case when the product was registered as a single unit)
+    }
+    return product.stock;
+  }
+
   useEffect(() => {
     fetchProducts(1, { search, sortBy, sortOrder });
   }, [search, sortBy, sortOrder]);
@@ -142,7 +183,6 @@ function RegisteredProducts() {
             <Title order={1} fw={900} lts="-0.5px">
               Registered Products
             </Title>
-            <Text c="dimmed">Search, sort and browse product inventory.</Text>
           </Box>
 
           <Group align="end" gap="sm">
@@ -164,9 +204,11 @@ function RegisteredProducts() {
               value={sortBy}
               onChange={(value) => setSortBy(value || "createdAt")}
               data={[
-                { value: "createdAt", label: "Date created" },
+                { value: "updatedAt", label: "Last Updated"},
                 { value: "name", label: "Name" },
+                { value: "createdAt", label: "SKU" },
                 { value: "stock", label: "Stock" },
+                { value: "salePrice", label: "Sale price" },
               ]}
               w={180}
             />
@@ -176,8 +218,8 @@ function RegisteredProducts() {
               value={sortOrder}
               onChange={(value) => setSortOrder(value || "desc")}
               data={[
-                { value: "desc", label: "Descending" },
-                { value: "asc", label: "Ascending" },
+                { value: "desc", label: "\u2193" },
+                { value: "asc", label: "\u2191" },
               ]}
               w={160}
             />
@@ -189,6 +231,14 @@ function RegisteredProducts() {
             >
               Search
             </Button>
+
+            <Button
+              onClick={() => {
+                handleUpdate();
+              }}
+            >
+              Update
+            </Button>
           </Group>
 
           {error ? <Text c="red">{error}</Text> : null}
@@ -197,10 +247,13 @@ function RegisteredProducts() {
             <Table striped highlightOnHover withTableBorder>
               <Table.Thead>
                 <Table.Tr>
+                  <Table.Th>SKU</Table.Th>
                   <Table.Th>Name</Table.Th>
                   <Table.Th>Stock</Table.Th>
+                  <Table.Th>Factor</Table.Th>
                   <Table.Th>Bought</Table.Th>
                   <Table.Th>Sold</Table.Th>
+                  <Table.Th>Difference</Table.Th>
                   <Table.Th>Barcode</Table.Th>
                   <Table.Th>Barcode Trib</Table.Th>
                   <Table.Th>Unit</Table.Th>
@@ -212,11 +265,15 @@ function RegisteredProducts() {
               </Table.Thead>
               <Table.Tbody>
                 {products.map((product) => (
+                  
                   <Table.Tr key={product._id}>
-                    <Table.Td>{product.name}</Table.Td>
+                    <Table.Td>{product.sku}</Table.Td>
+                    <Table.Td>{product.name.slice(0,30)}</Table.Td>
                     <Table.Td>{product.stock}</Table.Td>
-                    <Table.Td>{Number(product.bought?.toFixed(2)) || 0}</Table.Td>
+                    <Table.Td>{product.conversionFactor}</Table.Td>
+                    <Table.Td>{Number(product.bought?.toFixed(4)) || product.stock || 0}</Table.Td>
                     <Table.Td>{product.sold || 0}</Table.Td>
+                    <Table.Td>{getStock(product) || 0}</Table.Td>
                     <Table.Td>{product.barcode}</Table.Td>
                     <Table.Td>{product.barcodeTrib}</Table.Td>
                     <Table.Td>{product.unit}</Table.Td>

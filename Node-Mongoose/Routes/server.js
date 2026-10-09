@@ -7,14 +7,19 @@ import {
   getRegisteredProducts,
   getRegisteredProductMovementTotals,
 } from "../Controller/RegisteredProductController.js";
+import StaticProductController from "../Controller/StaticProductController.js";
 
 const routes = Router();
 
-routes.get("/productExists", ProductController.productExists);
 routes.get("/products", ProductController.getProduct);
 routes.post("/products", ProductController.createProduct);
 routes.put("/products", ProductController.editProduct);
 routes.post("/products/sync-local", ProductController.syncProductsToLocalDb);
+
+routes.post("/staticProducts", StaticProductController.createStaticProduct);
+routes.get("/staticProducts", StaticProductController.getStaticProducts);
+routes.get("/staticProducts/:productName", StaticProductController.getStaticProduct);
+routes.put("/staticProducts", StaticProductController.editStaticProduct);
 
 routes.post("/sales", SaleController.createSale);
 routes.get("/sales", SaleController.getSales);
@@ -28,15 +33,6 @@ routes.post("/purchases", PurchaseController.createPurchase);
 routes.get("/purchases", PurchaseController.getPurchase);
 routes.get("/registered-products", getRegisteredProducts);
 routes.post("/registered-products/movement-totals", getRegisteredProductMovementTotals);
-
-
-/*
-old routes to add
-routes.get("/sync");
-routes.get("/updateDB");
-routes.get("/changeTotal");
-routes.get("/scrape");
-*/
 
 
 export default routes;

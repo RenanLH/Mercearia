@@ -95,3 +95,18 @@ export interface PdfExtractedSale extends ParsedPdfLine {
 }
 
 export type PaymentMethodCode = "01" | "02" | "03" | "17";
+
+export type Action =
+  | {
+      type: 'fetchedSale';
+      payload: Sale[];
+    }
+  | 
+   {
+      type: 'addAlternative';
+      payload: { productIndex: number, alternative: Alternative };
+  }
+  |{
+      type: 'updatedSale';
+      payload: { updater: (sale: Sale) => Sale };
+  };

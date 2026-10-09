@@ -1,9 +1,7 @@
 import Purchase from "../Model/Purchase.js";
 import mongoose from "mongoose";
-import RegisteredProduct from "../Model/RegisteredProduct.js";
 import {
-  hasValidBarcode,
-  getEffectiveStock,
+  getProductKey,
   toDecimal128,
 } from "../Util/Utilities.js";
 import { createRegisteredProduct } from "./RegisteredProductController.js";
@@ -15,99 +13,48 @@ async function createPurchase(req, res) {
     await session.withTransaction(async () => {
       const purchase = req.body;
 
+      if (!purchase) {
+        throw new Error("purchase data is required");
+      }
+
       if (!purchase.CNPJ || purchase.CNPJ != process.env.EMPRESA_CNPJ) {
         throw new Error("invalid CNPJ");
       }
 
       if (
         !purchase.xNomeDest ||
-        !purchase.xNomeDest.includes(process.env.EMPRESA_RAZAO_SOCIAL)
+        !purchase.xNomeDest.includes(process.env.EMPRESA_RAZAO_SOCIAL) &&
+        !purchase.xNomeDest.includes(process.env.EMPRESA_RAZAO_SOCIAL_MISS)
       ) {
         throw new Error("invalid business name");
       }
 
+      const exists = await Purchase.findOne({ idNfe: purchase.idNfe }).session(session);
+      if (exists) {
+        throw new Error("purchase already exists");
+      }
+
       const productMap = await createRegisteredProduct(
-        req.body.products,
+        purchase.products,
         session,
       );
 
-      const productsToFormat = (req.body.products || []).map((product) => {
+
+      const productsToFormat = (purchase.products || []).map((product) => {
         const barcode = product.barcode || "SEM GTIN";
         const barcodeTrib = product.barcodeTrib || barcode;
-        const mapKey = hasValidBarcode(barcode)
-          ? barcode
-          : product.code + product.name;
+        const mapKey = getProductKey(product);
 
         return { product, barcode, barcodeTrib, mapKey };
       });
-
       const missingProducts = productsToFormat.filter(
         (p) => !productMap.has(p.mapKey),
       );
-
-      const missingByBarcode = new Map();
-      if (missingProducts.length > 0) {
-        const barcodes = missingProducts
-          .map((p) => [p.barcode, p.barcodeTrib])
-          .flat()
-          .filter(hasValidBarcode);
-
-        if (barcodes.length > 0) {
-          const found = await RegisteredProduct.find({
-            $or: [
-              { barcode: { $in: barcodes } },
-              { barcodeTrib: { $in: barcodes } },
-            ],
-          })
-            .session(session)
-            .lean();
-
-          found.forEach((p) => {
-            missingByBarcode.set(p.barcode, p);
-            missingByBarcode.set(p.barcodeTrib, p);
-          });
-        }
-
-        const stillMissing = missingProducts.filter(
-          (p) =>
-            !missingByBarcode.has(p.barcode) &&
-            !missingByBarcode.has(p.barcodeTrib),
-        );
-        if (stillMissing.length > 0) {
-          const byCodeName = await RegisteredProduct.find({
-            $or: stillMissing.map((p) => ({
-              code: p.product.code,
-              name: p.product.name,
-              unit: p.product.unit,
-              "fiscal.ncm": p.product.fiscal?.ncm,
-            })),
-          })
-            .session(session)
-            .lean();
-
-          byCodeName.forEach((p) => {
-            missingByBarcode.set(p.code + p.name, p);
-          });
-        }
-      }
-
       const formattedProducts = productsToFormat.map(
         ({ product, barcode, barcodeTrib, mapKey }) => {
-          const productDb =
-            productMap.get(mapKey) ||
-            missingByBarcode.get(barcode) ||
-            missingByBarcode.get(barcodeTrib);
+          const productDb = productMap.get(mapKey);
           const unitTrib = product.unitTrib || product.unit;
-
-          const qCom = getEffectiveStock(
-            product.stock,
-            product.stockTrib,
-            product.unit,
-            unitTrib,
-            product.costPrice,
-            product.costPriceTrib,
-            product.name,
-          );
+          const qCom = Number(product.stock) || 0;
           const qTrib = Number(product.stockTrib) || 0;
           const costPrice = toDecimal128(product.costPrice);
 

@@ -1,6 +1,5 @@
 import Datastore from "@seald-io/nedb";
 import { rm, rename } from "fs/promises";
-import mongoose from "mongoose";
 import Product from "../Model/Product.js";
 import { isMongoOnline } from "../Util/Utilities.js"
 import { fileURLToPath } from "url";
@@ -12,21 +11,6 @@ const localProductsDb = new Datastore({
   filename: productsDbPath,
   autoload: true,
 });
-
-async function productExists(req, res) {
-  try {
-    const barcode = req.query.codBarras;
-
-    const productDb = await Product.findOne({ barcode });
-
-    res.status(200).json(productDb);
-
-  } catch (error) {
-    console.log(error);
-    res.status(405).json("Error: " + (error.errorResponse?.errmsg || error.message || "An error occurred while checking if the product exists"));
-  }
-};
-
 
 async function createProduct(req, res) {
   try {
@@ -48,8 +32,6 @@ async function createProduct(req, res) {
     res.status(405).json("Error: " + (error.errorResponse?.errmsg || error.message || "An error occurred while creating the product"));
   }
 };
-
-
 
 async function editProduct(req, res) {
   try {
@@ -78,14 +60,19 @@ async function getProduct(req, res) {
   try {
     const barcode = req.query.codBarras;
     let productDb;
-    
+
     if (await isMongoOnline()) {
+      console.log("MongoDB is online, fetching product from MongoDB", isMongoOnline);
       productDb = await Product.findOne({ barcode }).select('-_id');
     } else {
       await localProductsDb.autoloadPromise;
       productDb = await localProductsDb.findOneAsync({ barcode }, { _id: 0 });
     }
 
+    if (!productDb) {
+      return res.status(404).json("Error: Product not found");
+    }
+    
     res.status(200).json(productDb);
 
   } catch (error) {
@@ -138,4 +125,4 @@ async function syncProductsToLocalDb(req, res) {
   }
 }
 
-export default { productExists, getProduct, createProduct, editProduct, syncProductsToLocalDb }
+export default { getProduct, createProduct, editProduct, syncProductsToLocalDb }
